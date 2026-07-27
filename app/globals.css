@@ -1,0 +1,23 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+:root {
+  color-scheme: light;
+}
+
+html,
+body {
+  height: 100%;
+}
+
+body {
+  @apply bg-slate-50 text-slate-900 antialiased;
+}
+
+/* Subscript for chemical formulas rendered from plain input */
+.sub {
+  font-size: 0.75em;
+  vertical-align: sub;
+  line-height: 0;
+}
