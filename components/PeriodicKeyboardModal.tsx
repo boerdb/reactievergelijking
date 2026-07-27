@@ -4,6 +4,7 @@ import { useEffect, useRef, useState } from "react";
 import {
   GROUP_STYLES,
   groupOf,
+  nameOf,
   LANTHANIDES,
   ACTINIDES,
   type GroupName,
@@ -242,7 +243,7 @@ export default function PeriodicKeyboardModal({
                       key={c}
                       className={elemClass(cell)}
                       onClick={() => insert(cell)}
-                      title={`${cell} — ${GROUP_STYLES[groupOf(cell)].label}`}
+                      title={`${cell} — ${nameOf(cell)} (${GROUP_STYLES[groupOf(cell)].label})`}
                     >
                       {cell}
                     </button>
@@ -253,14 +254,24 @@ export default function PeriodicKeyboardModal({
 
             <div className="mt-2 mb-1 grid grid-cols-15 gap-1">
               {LANTHANIDES.map((el) => (
-                <button key={el} className={elemSmClass(el)} onClick={() => insert(el)}>
+                <button
+                  key={el}
+                  className={elemSmClass(el)}
+                  onClick={() => insert(el)}
+                  title={`${el} — ${nameOf(el)} (${GROUP_STYLES[groupOf(el)].label})`}
+                >
                   {el}
                 </button>
               ))}
             </div>
             <div className="mb-1 grid grid-cols-15 gap-1">
               {ACTINIDES.map((el) => (
-                <button key={el} className={elemSmClass(el)} onClick={() => insert(el)}>
+                <button
+                  key={el}
+                  className={elemSmClass(el)}
+                  onClick={() => insert(el)}
+                  title={`${el} — ${nameOf(el)} (${GROUP_STYLES[groupOf(el)].label})`}
+                >
                   {el}
                 </button>
               ))}

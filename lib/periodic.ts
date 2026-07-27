@@ -84,3 +84,22 @@ export function groupOf(sym: string): GroupName {
   if (ACTINIDES.includes(sym)) return "actinide";
   return ELEMENT_GROUP[sym] ?? "onbekend";
 }
+
+// Nederlandse namen van de elementen. Voor elementen met een internationale
+// naam die in het Nederlands gelijk is, gebruiken we die naam toch om de
+// tooltip eenduidig te houden.
+export const ELEMENT_NL: Record<string, string> = {
+  H: "Waterstof", He: "Helium",
+  Li: "Lithium", Be: "Beryllium", B: "Boor", C: "Koolstof", N: "Stikstof", O: "Zuurstof", F: "Fluor", Ne: "Neon",
+  Na: "Natrium", Mg: "Magnesium", Al: "Aluminium", Si: "Silicium", P: "Fosfor", S: "Zwavel", Cl: "Chloor", Ar: "Argon",
+  K: "Kalium", Ca: "Calcium", Sc: "Scandium", Ti: "Titanium", V: "Vanadium", Cr: "Chroom", Mn: "Mangaan", Fe: "IJzer", Co: "Kobalt", Ni: "Nikkel", Cu: "Koper", Zn: "Zink", Ga: "Gallium", Ge: "Germanium", As: "Arseen", Se: "Selenium", Br: "Broom", Kr: "Krypton",
+  Rb: "Rubidium", Sr: "Strontium", Y: "Yttrium", Zr: "Zirkonium", Nb: "Niobium", Mo: "Molybdeen", Tc: "Technetium", Ru: "Ruthenium", Rh: "Rhodium", Pd: "Palladium", Ag: "Zilver", Cd: "Cadmium", In: "Indium", Sn: "Tin", Sb: "Antimoon", Te: "Telluur", I: "Jodium", Xe: "Xenon",
+  Cs: "Cesium", Ba: "Barium", Hf: "Hafnium", Ta: "Tantaal", W: "Wolfraam", Re: "Rhenium", Os: "Osmium", Ir: "Iridium", Pt: "Platina", Au: "Goud", Hg: "Kwik", Tl: "Thallium", Pb: "Lood", Bi: "Bismut", Po: "Polonium", At: "Astaat", Rn: "Radon",
+  Fr: "Francium", Ra: "Radium", Rf: "Rutherfordium", Db: "Dubnium", Sg: "Seaborgium", Bh: "Bohrium", Hs: "Hassium", Mt: "Meitnerium", Ds: "Darmstadtium", Rg: "Röntgenium", Cn: "Copernicium", Nh: "Nihonium", Fl: "Flerovium", Mc: "Moscovium", Lv: "Livermorium", Ts: "Tennessine", Og: "Oganesson",
+  La: "Lanthaan", Ce: "Cerium", Pr: "Praseodymium", Nd: "Neodymium", Pm: "Promethium", Sm: "Samarium", Eu: "Europium", Gd: "Gadolinium", Tb: "Terbium", Dy: "Dysprosium", Ho: "Holmium", Er: "Erbium", Tm: "Thulium", Yb: "Ytterbium", Lu: "Lutetium",
+  Ac: "Actinium", Th: "Thorium", Pa: "Protactinium", U: "Uranium", Np: "Neptunium", Pu: "Plutonium", Am: "Americium", Cm: "Curium", Bk: "Berkelium", Cf: "Californium", Es: "Einsteinium", Fm: "Fermium", Md: "Mendelevium", No: "Nobelium", Lr: "Lawrencium",
+};
+
+export function nameOf(sym: string): string {
+  return ELEMENT_NL[sym] ?? sym;
+}
