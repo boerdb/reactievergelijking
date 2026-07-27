@@ -1,33 +1,28 @@
 "use client";
 
 import { useEffect, useRef, useState } from "react";
+import {
+  GROUP_STYLES,
+  groupOf,
+  LANTHANIDES,
+  ACTINIDES,
+  type GroupName,
+} from "@/lib/periodic";
 
-// Periodiek systeem — hoofdgrid (rij, kolom) → element.
-// Lege cellen worden als null opgeslagen; de twee rijen lanthaniden/actiniden
-// staan apart onderaan.
 type Cell = string | null;
 
 const PERIODIC_GRID: Cell[][] = [
-  // rij 1
   ["H", null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, "He"],
-  // rij 2
   ["Li", "Be", null, null, null, null, null, null, null, null, null, null, "B", "C", "N", "O", "F", "Ne"],
-  // rij 3
   ["Na", "Mg", null, null, null, null, null, null, null, null, null, null, "Al", "Si", "P", "S", "Cl", "Ar"],
-  // rij 4
   ["K", "Ca", "Sc", "Ti", "V", "Cr", "Mn", "Fe", "Co", "Ni", "Cu", "Zn", "Ga", "Ge", "As", "Se", "Br", "Kr"],
-  // rij 5
   ["Rb", "Sr", "Y", "Zr", "Nb", "Mo", "Tc", "Ru", "Rh", "Pd", "Ag", "Cd", "In", "Sn", "Sb", "Te", "I", "Xe"],
-  // rij 6 — La is placeholder (*), rest in lanthanide-rij
   ["Cs", "Ba", "*", "Hf", "Ta", "W", "Re", "Os", "Ir", "Pt", "Au", "Hg", "Tl", "Pb", "Bi", "Po", "At", "Rn"],
-  // rij 7 — Ac is placeholder (**), rest in actinide-rij
   ["Fr", "Ra", "**", "Rf", "Db", "Sg", "Bh", "Hs", "Mt", "Ds", "Rg", "Cn", "Nh", "Fl", "Mc", "Lv", "Ts", "Og"],
 ];
 
-const LANTHANIDES = ["La", "Ce", "Pr", "Nd", "Pm", "Sm", "Eu", "Gd", "Tb", "Dy", "Ho", "Er", "Tm", "Yb", "Lu"];
-const ACTINIDES = ["Ac", "Th", "Pa", "U", "Np", "Pu", "Am", "Cm", "Bk", "Cf", "Es", "Fm", "Md", "No", "Lr"];
-
 const NUMBERS = ["1", "2", "3", "4", "5", "6", "7", "8", "9", "0"];
+const CHARGES = ["+", "-", "2+", "2-", "3+", "3-"];
 
 interface Props {
   open: boolean;
@@ -48,12 +43,10 @@ export default function PeriodicKeyboardModal({
   useEffect(() => {
     if (open) {
       setValue(initial);
-      // Focus na render
       setTimeout(() => inputRef.current?.focus(), 50);
     }
   }, [open, initial]);
 
-  // Sluit op Escape
   useEffect(() => {
     if (!open) return;
     const handler = (e: KeyboardEvent) => {
@@ -75,7 +68,6 @@ export default function PeriodicKeyboardModal({
     const end = el.selectionEnd ?? value.length;
     const next = value.slice(0, start) + text + value.slice(end);
     setValue(next);
-    // Zet cursor direct na ingevoegde tekst
     requestAnimationFrame(() => {
       el.focus();
       const pos = start + text.length;
@@ -92,7 +84,6 @@ export default function PeriodicKeyboardModal({
     const start = el.selectionStart ?? value.length;
     const end = el.selectionEnd ?? value.length;
     if (start !== end) {
-      // Verwijder selectie
       setValue(value.slice(0, start) + value.slice(end));
       requestAnimationFrame(() => {
         el.focus();
@@ -102,8 +93,7 @@ export default function PeriodicKeyboardModal({
       setValue(value.slice(0, start - 1) + value.slice(end));
       requestAnimationFrame(() => {
         el.focus();
-        const pos = start - 1;
-        el.setSelectionRange(pos, pos);
+        el.setSelectionRange(start - 1, start - 1);
       });
     }
   }
@@ -119,30 +109,39 @@ export default function PeriodicKeyboardModal({
   }
 
   const keyBtn =
-    "rounded-md border border-slate-600 bg-slate-800 px-2 py-2 text-sm font-semibold text-slate-100 transition hover:bg-slate-700 hover:border-slate-500 active:bg-slate-900 select-none";
-  const elemBtn =
-    "rounded-md border border-slate-600 bg-slate-800 px-1 py-1.5 text-xs font-semibold text-slate-100 transition hover:bg-brand-600 hover:border-brand-400 active:bg-brand-700 select-none";
-  const elemBtnSm =
-    "rounded border border-slate-700 bg-slate-800/70 px-1 py-1 text-[10px] font-semibold text-slate-200 transition hover:bg-brand-600 hover:border-brand-400 active:bg-brand-700 select-none";
+    "rounded-md border border-slate-600 bg-slate-800 px-2 py-2 text-sm font-semibold text-slate-100 transition hover:bg-slate-700 active:bg-slate-900 select-none";
+  const elemBase =
+    "rounded-md border px-1 py-1.5 text-xs font-semibold transition active:scale-95 select-none";
+  const elemSmBase =
+    "rounded border px-1 py-1 text-[10px] font-semibold transition active:scale-95 select-none";
+
+  function elemClass(sym: string): string {
+    const g: GroupName = groupOf(sym);
+    return `${elemBase} ${GROUP_STYLES[g].btn}`;
+  }
+  function elemSmClass(sym: string): string {
+    const g: GroupName = groupOf(sym);
+    return `${elemSmBase} ${GROUP_STYLES[g].btn}`;
+  }
 
   return (
     <div
-      className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 p-4"
+      className="fixed inset-0 z-50 flex items-end sm:items-center justify-center bg-black/70 p-2 sm:p-4"
       onClick={onClose}
     >
       <div
-        className="w-full max-w-3xl rounded-2xl bg-slate-900 p-4 shadow-2xl ring-1 ring-slate-700"
+        className="w-full max-w-3xl max-h-[95vh] overflow-y-auto rounded-t-2xl sm:rounded-2xl bg-slate-900 p-3 sm:p-4 shadow-2xl ring-1 ring-slate-700"
         onClick={(e) => e.stopPropagation()}
       >
         {/* Header */}
-        <div className="mb-3 flex items-center justify-between">
+        <div className="mb-3 flex items-center justify-between gap-2">
           <button
             onClick={onClose}
             className="rounded-lg border border-slate-500 px-3 py-1.5 text-sm font-medium text-slate-200 transition hover:bg-slate-800"
           >
             ✕ Annuleren
           </button>
-          <h2 className="text-sm font-semibold text-slate-300">
+          <h2 className="text-sm font-semibold text-slate-300 hidden sm:block">
             Bouw de vergelijking
           </h2>
           <button
@@ -160,7 +159,7 @@ export default function PeriodicKeyboardModal({
           value={value}
           onChange={(e) => setValue(e.target.value)}
           placeholder="bijv. 2 H2 + O2 -> 2 H2O"
-          className="mb-3 w-full rounded-lg border border-slate-600 bg-slate-950 px-3 py-2.5 font-mono text-lg text-white focus:border-brand-500 focus:outline-none focus:ring-2 focus:ring-brand-500/30"
+          className="mb-3 w-full rounded-lg border border-slate-600 bg-slate-950 px-3 py-2.5 font-mono text-base sm:text-lg text-white focus:border-brand-500 focus:outline-none focus:ring-2 focus:ring-brand-500/30"
           spellCheck={false}
           autoComplete="off"
           onKeyDown={(e) => {
@@ -177,8 +176,8 @@ export default function PeriodicKeyboardModal({
           ))}
         </div>
 
-        {/* Symboolrij */}
-        <div className="mb-3 grid grid-cols-6 gap-1 sm:grid-cols-7">
+        {/* Symbool- en lading-rij */}
+        <div className="mb-3 grid grid-cols-4 sm:grid-cols-9 gap-1">
           <button className={keyBtn} onClick={() => insert("(")}>(</button>
           <button className={keyBtn} onClick={() => insert(")")}>)</button>
           <button className={keyBtn} onClick={() => insert(" + ")}>+</button>
@@ -186,22 +185,48 @@ export default function PeriodicKeyboardModal({
           <button className={keyBtn} onClick={() => insert(".")}>·</button>
           <button className={keyBtn} onClick={backspace}>⌫</button>
           <button
-            className={`${keyBtn} col-span-6 sm:col-span-1`}
+            className={`${keyBtn} col-span-1`}
             onClick={clearAll}
           >
             Wis
           </button>
+          {/* Lading-knoppen — voegen superscript toe */}
+          {CHARGES.slice(0, 2).map((c) => (
+            <button
+              key={c}
+              className={keyBtn}
+              onClick={() => insert(c)}
+              title="Lading"
+            >
+              {c}
+            </button>
+          ))}
         </div>
 
-        {/* Periodiek systeem — hoofdgrid */}
-        <div className="overflow-x-auto">
+        {/* Extra lading-knoppen (mobiel onder elkaar, desktop één rij) */}
+        <div className="mb-3 grid grid-cols-4 sm:grid-cols-6 gap-1">
+          {CHARGES.slice(2).map((c) => (
+            <button
+              key={c}
+              className={keyBtn}
+              onClick={() => insert(c)}
+              title="Lading"
+            >
+              {c}
+            </button>
+          ))}
+          <span className="col-span-2 sm:col-span-1 self-center text-[10px] text-slate-500 sm:col-start-6 text-right">
+            ladingen
+          </span>
+        </div>
+
+        {/* Periodiek systeem — scrollbaar op mobiel */}
+        <div className="overflow-x-auto -mx-1 px-1">
           <div className="min-w-[560px]">
             {PERIODIC_GRID.map((row, r) => (
               <div key={r} className="mb-1 grid grid-cols-18 gap-1">
                 {row.map((cell, c) => {
-                  if (cell === null) {
-                    return <div key={c} />;
-                  }
+                  if (cell === null) return <div key={c} />;
                   if (cell === "*" || cell === "**") {
                     return (
                       <div
@@ -215,9 +240,9 @@ export default function PeriodicKeyboardModal({
                   return (
                     <button
                       key={c}
-                      className={elemBtn}
+                      className={elemClass(cell)}
                       onClick={() => insert(cell)}
-                      title={cell}
+                      title={`${cell} — ${GROUP_STYLES[groupOf(cell)].label}`}
                     >
                       {cell}
                     </button>
@@ -226,17 +251,16 @@ export default function PeriodicKeyboardModal({
               </div>
             ))}
 
-            {/* Lanthaniden / Actiniden */}
             <div className="mt-2 mb-1 grid grid-cols-15 gap-1">
               {LANTHANIDES.map((el) => (
-                <button key={el} className={elemBtnSm} onClick={() => insert(el)}>
+                <button key={el} className={elemSmClass(el)} onClick={() => insert(el)}>
                   {el}
                 </button>
               ))}
             </div>
             <div className="mb-1 grid grid-cols-15 gap-1">
               {ACTINIDES.map((el) => (
-                <button key={el} className={elemBtnSm} onClick={() => insert(el)}>
+                <button key={el} className={elemSmClass(el)} onClick={() => insert(el)}>
                   {el}
                 </button>
               ))}
@@ -244,11 +268,21 @@ export default function PeriodicKeyboardModal({
           </div>
         </div>
 
+        {/* Legenda */}
+        <div className="mt-3 flex flex-wrap gap-x-3 gap-y-1 text-[10px] text-slate-400">
+          {(Object.keys(GROUP_STYLES) as GroupName[])
+            .filter((g) => g !== "onbekend")
+            .map((g) => (
+              <span key={g} className="flex items-center gap-1">
+                <span className={`inline-block h-2.5 w-2.5 rounded border ${GROUP_STYLES[g].btn.split(" ").slice(0, 2).join(" ")}`} />
+                {GROUP_STYLES[g].label}
+              </span>
+            ))}
+        </div>
+
         <p className="mt-3 text-center text-xs text-slate-500">
-          Tip: typ ook gewoon zelf — of klik op een element om het toe te voegen.
-          Druk op <kbd className="rounded bg-slate-800 px-1">Enter</kbd> om op te
-          slaan, <kbd className="rounded bg-slate-800 px-1">Esc</kbd> om te
-          annuleren.
+          <kbd className="rounded bg-slate-800 px-1">Enter</kbd> opslaan ·{" "}
+          <kbd className="rounded bg-slate-800 px-1">Esc</kbd> annuleren
         </p>
       </div>
     </div>
