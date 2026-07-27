@@ -1,6 +1,7 @@
 "use client";
 
 import { useMemo, useState } from "react";
+import PeriodicKeyboardModal from "@/components/PeriodicKeyboardModal";
 import {
   parseEquation,
   ParseError,
@@ -69,6 +70,7 @@ export default function Page() {
   const [parsed, setParsed] = useState<ParsedEquation | null>(null);
   const [feedback, setFeedback] = useState<Feedback | null>(null);
   const [copyState, setCopyState] = useState<"idle" | "ok" | "err">("idle");
+  const [keyboardOpen, setKeyboardOpen] = useState(false);
 
   function handleCheck() {
     if (input.trim().length === 0) {
@@ -215,6 +217,13 @@ export default function Page() {
               Controleer
             </button>
             <button
+              onClick={() => setKeyboardOpen(true)}
+              className="rounded-lg bg-slate-800 px-4 py-2 text-sm font-semibold text-white shadow-sm transition hover:bg-slate-900"
+              title="Open het periodiek systeem als invoerhulp"
+            >
+              ⌨ Elementenkiezer
+            </button>
+            <button
               onClick={handleClear}
               className="rounded-lg bg-slate-100 px-4 py-2 text-sm font-semibold text-slate-700 transition hover:bg-slate-200"
             >
@@ -351,6 +360,18 @@ export default function Page() {
           browser.
         </footer>
       </div>
+
+      <PeriodicKeyboardModal
+        open={keyboardOpen}
+        initial={input}
+        onClose={() => setKeyboardOpen(false)}
+        onSave={(v) => {
+          setInput(v);
+          setParsed(null);
+          setFeedback(null);
+          setCopyState("idle");
+        }}
+      />
     </main>
   );
 }
