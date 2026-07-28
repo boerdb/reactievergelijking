@@ -17,51 +17,62 @@ export type GroupName =
 
 export const GROUP_STYLES: Record<
   GroupName,
-  { label: string; btn: string }
+  { label: string; btn: string; swatch: string }
 > = {
   alkalimetaal: {
     label: "Alkalimetaal",
-    btn: "bg-rose-900/70 border-rose-600 hover:bg-rose-700 text-rose-50",
+    btn: "bg-red-600 border-red-300 hover:bg-red-500 text-white",
+    swatch: "bg-red-600 border-red-300",
   },
   aardalkalimetaal: {
     label: "Aardalkalimetaal",
-    btn: "bg-orange-900/70 border-orange-600 hover:bg-orange-700 text-orange-50",
+    btn: "bg-orange-500 border-orange-200 hover:bg-orange-400 text-white",
+    swatch: "bg-orange-500 border-orange-200",
   },
   overgangsmetaal: {
     label: "Overgangsmetaal",
-    btn: "bg-amber-900/70 border-amber-600 hover:bg-amber-700 text-amber-50",
+    btn: "bg-amber-400 border-amber-200 hover:bg-amber-300 text-slate-900",
+    swatch: "bg-amber-400 border-amber-200",
   },
   "hoofdgroep-metaal": {
     label: "Hoofdgroepmetaal",
-    btn: "bg-sky-900/70 border-sky-600 hover:bg-sky-700 text-sky-50",
+    btn: "bg-sky-600 border-sky-300 hover:bg-sky-500 text-white",
+    swatch: "bg-sky-600 border-sky-300",
   },
   metalloide: {
     label: "Metalloïde",
-    btn: "bg-teal-900/70 border-teal-600 hover:bg-teal-700 text-teal-50",
+    btn: "bg-teal-600 border-teal-300 hover:bg-teal-500 text-white",
+    swatch: "bg-teal-600 border-teal-300",
   },
   "niet-metaal": {
     label: "Niet-metaal",
-    btn: "bg-emerald-900/70 border-emerald-600 hover:bg-emerald-700 text-emerald-50",
+    btn: "bg-emerald-600 border-emerald-300 hover:bg-emerald-500 text-white",
+    swatch: "bg-emerald-600 border-emerald-300",
   },
   halogeen: {
     label: "Halogeen",
-    btn: "bg-violet-900/70 border-violet-600 hover:bg-violet-700 text-violet-50",
+    btn: "bg-violet-600 border-violet-300 hover:bg-violet-500 text-white",
+    swatch: "bg-violet-600 border-violet-300",
   },
   edelgas: {
     label: "Edelgas",
-    btn: "bg-indigo-900/70 border-indigo-600 hover:bg-indigo-700 text-indigo-50",
+    btn: "bg-indigo-600 border-indigo-300 hover:bg-indigo-500 text-white",
+    swatch: "bg-indigo-600 border-indigo-300",
   },
   lanthanide: {
     label: "Lanthanide",
-    btn: "bg-fuchsia-900/70 border-fuchsia-600 hover:bg-fuchsia-700 text-fuchsia-50",
+    btn: "bg-fuchsia-600 border-fuchsia-300 hover:bg-fuchsia-500 text-white",
+    swatch: "bg-fuchsia-600 border-fuchsia-300",
   },
   actinide: {
     label: "Actinide",
-    btn: "bg-pink-900/70 border-pink-600 hover:bg-pink-700 text-pink-50",
+    btn: "bg-pink-500 border-pink-200 hover:bg-pink-400 text-white",
+    swatch: "bg-pink-500 border-pink-200",
   },
   onbekend: {
     label: "Onbekend",
-    btn: "bg-slate-800 border-slate-600 hover:bg-slate-700 text-slate-100",
+    btn: "bg-slate-700 border-slate-500 hover:bg-slate-600 text-slate-100",
+    swatch: "bg-slate-700 border-slate-500",
   },
 };
 

@@ -285,7 +285,7 @@ export default function PeriodicKeyboardModal({
             .filter((g) => g !== "onbekend")
             .map((g) => (
               <span key={g} className="flex items-center gap-1">
-                <span className={`inline-block h-2.5 w-2.5 rounded border ${GROUP_STYLES[g].btn.split(" ").slice(0, 2).join(" ")}`} />
+                <span className={`inline-block h-2.5 w-2.5 rounded border ${GROUP_STYLES[g].swatch}`} />
                 {GROUP_STYLES[g].label}
               </span>
             ))}
