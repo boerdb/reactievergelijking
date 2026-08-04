@@ -180,9 +180,10 @@ export default function Page() {
             </h1>
             <Link
               href="/bereken"
-              className="shrink-0 rounded-lg bg-slate-800 px-2.5 py-1.5 text-xs sm:text-sm font-semibold text-white shadow-sm transition hover:bg-slate-900"
+              className="shrink-0 rounded-lg bg-slate-800 px-2.5 py-1.5 text-sm font-semibold text-white shadow-sm transition hover:bg-slate-900"
+              title="Molecuulmassa & deeltjes berekenen"
             >
-              🧮 <span className="hidden sm:inline">Molecuulmassa</span>
+              🧮
             </Link>
           </div>
           <p className="mt-2 text-slate-600">
