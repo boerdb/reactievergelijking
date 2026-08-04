@@ -1,6 +1,7 @@
 "use client";
 
 import { useMemo, useState } from "react";
+import Link from "next/link";
 import PeriodicKeyboardModal from "@/components/PeriodicKeyboardModal";
 import {
   parseEquation,
@@ -173,9 +174,17 @@ export default function Page() {
     <main className="min-h-screen px-4 py-8 sm:px-6 lg:px-8">
       <div className="mx-auto max-w-3xl">
         <header className="mb-8">
-          <h1 className="text-3xl font-bold tracking-tight text-slate-900">
-            Reactievergelijkingen controle
-          </h1>
+          <div className="flex items-center justify-between gap-4">
+            <h1 className="text-3xl font-bold tracking-tight text-slate-900">
+              Reactievergelijkingen controle
+            </h1>
+            <Link
+              href="/bereken"
+              className="shrink-0 rounded-lg bg-slate-800 px-3 py-2 text-sm font-semibold text-white shadow-sm transition hover:bg-slate-900"
+            >
+              🧮 Molecuulmassa
+            </Link>
+          </div>
           <p className="mt-2 text-slate-600">
             Voer een scheikundige reactievergelijking in, controleer of hij
             klopt, en kopieer hem naar Word voor je huiswerk.
