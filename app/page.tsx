@@ -174,15 +174,15 @@ export default function Page() {
     <main className="min-h-screen px-4 py-8 sm:px-6 lg:px-8">
       <div className="mx-auto max-w-3xl">
         <header className="mb-8">
-          <div className="flex items-center justify-between gap-4">
-            <h1 className="text-3xl font-bold tracking-tight text-slate-900">
+          <div className="flex items-start justify-between gap-3">
+            <h1 className="text-2xl sm:text-3xl font-bold tracking-tight text-slate-900">
               Reactievergelijkingen controle
             </h1>
             <Link
               href="/bereken"
-              className="shrink-0 rounded-lg bg-slate-800 px-3 py-2 text-sm font-semibold text-white shadow-sm transition hover:bg-slate-900"
+              className="shrink-0 rounded-lg bg-slate-800 px-2.5 py-1.5 text-xs sm:text-sm font-semibold text-white shadow-sm transition hover:bg-slate-900"
             >
-              🧮 Molecuulmassa
+              🧮 <span className="hidden sm:inline">Molecuulmassa</span>
             </Link>
           </div>
           <p className="mt-2 text-slate-600">
