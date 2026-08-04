@@ -1,7 +1,7 @@
 // Berekeningen voor molecuulmassa, protonen, neutronen en elektronen.
 // Hergebruikt de parser om de element-telling uit een formule te halen.
 
-import { parseEquation, ParseError, type ParsedEquation } from "./parser";
+import { parseFormula, ParseError } from "./parser";
 import { getElement } from "./elements";
 
 export interface ElementBreakdown {
@@ -27,26 +27,6 @@ export interface CalcResult {
 
 export class CalcError extends Error {}
 
-// Parse één formule (geen pijl, geen +). Geeft element-telling.
-function parseSingleFormula(formula: string): Record<string, number> {
-  // Wikkel in een dummy-vergelijking "X -> formule" zodat de parser het snapt.
-  // We gebruiken alleen de rechterkant.
-  const dummy = `X -> ${formula}`;
-  let parsed: ParsedEquation;
-  try {
-    parsed = parseEquation(dummy);
-  } catch (e) {
-    if (e instanceof ParseError) throw new CalcError(e.message);
-    throw e;
-  }
-  // De rechterkant kan meerdere deeltjes bevatten als er + in staat — dat is
-  // voor een enkele formule niet de bedoeling. We tellen alles op.
-  const totals = parsed.right.totals;
-  // Verwijder het dummy-element X.
-  delete totals["X"];
-  return totals;
-}
-
 export function calculate(
   formula: string,
   charge: number = 0
@@ -54,7 +34,13 @@ export function calculate(
   const trimmed = formula.trim();
   if (trimmed.length === 0) throw new CalcError("Voer een formule in.");
 
-  const counts = parseSingleFormula(trimmed);
+  let counts: Record<string, number>;
+  try {
+    counts = parseFormula(trimmed);
+  } catch (e) {
+    if (e instanceof ParseError) throw new CalcError(e.message);
+    throw e;
+  }
 
   const breakdown: ElementBreakdown[] = [];
   let mass = 0;
@@ -101,4 +87,37 @@ export function calculate(
 // Format een getal met maximaal 3 decimalen, zonder onnodige nullen.
 export function fmt(n: number): string {
   return Number(n.toFixed(3)).toString();
+}
+
+// Massapercentage per element in de formule.
+export function massPercentages(result: CalcResult): { symbol: string; name: string; pct: number }[] {
+  return result.breakdown.map((b) => ({
+    symbol: b.symbol,
+    name: b.name,
+    pct: result.mass > 0 ? (b.massTotal / result.mass) * 100 : 0,
+  }));
+}
+
+// Mol-berekeningen.
+// - molFromMass: gegeven massa (g) → aantal mol
+// - massFromMol: gegeven aantal mol → massa (g)
+// - particlesFromMol: gegeven mol → aantal deeltjes (met Avogadro)
+// - molFromParticles: gegeven aantal deeltjes → mol
+export const AVOGADRO = 6.02214076e23;
+
+export function molFromMass(massGram: number, molarMass: number): number {
+  if (molarMass <= 0) return 0;
+  return massGram / molarMass;
+}
+
+export function massFromMol(mol: number, molarMass: number): number {
+  return mol * molarMass;
+}
+
+export function particlesFromMol(mol: number): number {
+  return mol * AVOGADRO;
+}
+
+export function molFromParticles(particles: number): number {
+  return particles / AVOGADRO;
 }

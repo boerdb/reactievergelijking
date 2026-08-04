@@ -53,7 +53,7 @@ function addCounts(target: Counts, source: Counts, factor: number) {
 
 // Parse een enkele formule (zonder coëfficiënt) naar een element-telling.
 // Bijv. "H2O" -> { H: 2, O: 1 }, "Ca(OH)2" -> { Ca: 1, O: 2, H: 2 }
-function parseFormula(formula: string): Counts {
+export function parseFormula(formula: string): Counts {
   const counts: Counts = {};
   let i = 0;
 

@@ -2,7 +2,18 @@
 
 import { useState } from "react";
 import Link from "next/link";
-import { calculate, CalcError, fmt, type CalcResult } from "@/lib/calc";
+import {
+  calculate,
+  CalcError,
+  fmt,
+  massPercentages,
+  molFromMass,
+  massFromMol,
+  particlesFromMol,
+  molFromParticles,
+  AVOGADRO,
+  type CalcResult,
+} from "@/lib/calc";
 import { tokenizeFormula } from "@/lib/parser";
 import PeriodicKeyboardModal from "@/components/PeriodicKeyboardModal";
 
@@ -29,6 +40,9 @@ export default function BerekenPage() {
   const [result, setResult] = useState<CalcResult | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [keyboardOpen, setKeyboardOpen] = useState(false);
+  const [molInput, setMolInput] = useState(""); // aantal mol
+  const [gramInput, setGramInput] = useState(""); // massa in gram
+  const [particleInput, setParticleInput] = useState(""); // aantal deeltjes
 
   function handleCalc() {
     if (formula.trim().length === 0) {
@@ -275,6 +289,138 @@ export default function BerekenPage() {
                 atoomnummer; dit is een benadering voor elementen met meerdere
                 isotopen.
               </p>
+            </section>
+
+            {/* Massapercentage */}
+            <section className="mt-6 rounded-2xl bg-white p-6 shadow-sm ring-1 ring-slate-200">
+              <h2 className="text-sm font-semibold text-slate-700">
+                Massapercentage per element
+              </h2>
+              <div className="mt-3 space-y-3">
+                {massPercentages(result).map((p) => (
+                  <div key={p.symbol}>
+                    <div className="flex items-center justify-between text-sm">
+                      <span className="font-mono font-semibold">
+                        {p.symbol}{" "}
+                        <span className="font-normal text-slate-600">
+                          {p.name}
+                        </span>
+                      </span>
+                      <span className="font-semibold">
+                        {fmt(p.pct)}%
+                      </span>
+                    </div>
+                    <div className="mt-1 h-2 w-full overflow-hidden rounded-full bg-slate-100">
+                      <div
+                        className="h-full rounded-full bg-brand-500"
+                        style={{ width: `${Math.min(p.pct, 100)}%` }}
+                      />
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </section>
+
+            {/* Mol-berekeningen */}
+            <section className="mt-6 rounded-2xl bg-white p-6 shadow-sm ring-1 ring-slate-200">
+              <h2 className="text-sm font-semibold text-slate-700">
+                Mol-berekeningen
+              </h2>
+              <p className="mt-1 text-xs text-slate-500">
+                Molaire massa:{" "}
+                <span className="font-mono font-semibold">
+                  {fmt(result.mass)} g/mol
+                </span>{" "}
+                · Avogadro: {AVOGADRO.toExponential(4)} /mol
+              </p>
+
+              {/* massa → mol → deeltjes */}
+              <div className="mt-4">
+                <label className="block text-xs font-medium text-slate-600">
+                  Van massa (g) naar mol &amp; deeltjes
+                </label>
+                <div className="mt-1 flex gap-2">
+                  <input
+                    type="number"
+                    value={gramInput}
+                    onChange={(e) => setGramInput(e.target.value)}
+                    placeholder="bijv. 18"
+                    className="w-32 rounded-lg border border-slate-300 px-3 py-2 font-mono text-sm focus:border-brand-500 focus:outline-none focus:ring-2 focus:ring-brand-500/30"
+                  />
+                  <div className="self-center text-sm text-slate-500">g</div>
+                </div>
+                {gramInput && !isNaN(parseFloat(gramInput)) && (
+                  <div className="mt-2 text-sm text-slate-700">
+                    = <span className="font-semibold">
+                      {fmt(molFromMass(parseFloat(gramInput), result.mass))} mol
+                    </span>
+                    {" = "}
+                    <span className="font-semibold">
+                      {particlesFromMol(molFromMass(parseFloat(gramInput), result.mass)).toExponential(3)}
+                    </span>{" "}
+                    deeltjes
+                  </div>
+                )}
+              </div>
+
+              {/* mol → massa → deeltjes */}
+              <div className="mt-4">
+                <label className="block text-xs font-medium text-slate-600">
+                  Van mol naar massa &amp; deeltjes
+                </label>
+                <div className="mt-1 flex gap-2">
+                  <input
+                    type="number"
+                    value={molInput}
+                    onChange={(e) => setMolInput(e.target.value)}
+                    placeholder="bijv. 0.5"
+                    className="w-32 rounded-lg border border-slate-300 px-3 py-2 font-mono text-sm focus:border-brand-500 focus:outline-none focus:ring-2 focus:ring-brand-500/30"
+                  />
+                  <div className="self-center text-sm text-slate-500">mol</div>
+                </div>
+                {molInput && !isNaN(parseFloat(molInput)) && (
+                  <div className="mt-2 text-sm text-slate-700">
+                    = <span className="font-semibold">
+                      {fmt(massFromMol(parseFloat(molInput), result.mass))} g
+                    </span>
+                    {" = "}
+                    <span className="font-semibold">
+                      {particlesFromMol(parseFloat(molInput)).toExponential(3)}
+                    </span>{" "}
+                    deeltjes
+                  </div>
+                )}
+              </div>
+
+              {/* deeltjes → mol → massa */}
+              <div className="mt-4">
+                <label className="block text-xs font-medium text-slate-600">
+                  Van aantal deeltjes naar mol &amp; massa
+                </label>
+                <div className="mt-1 flex gap-2">
+                  <input
+                    type="number"
+                    value={particleInput}
+                    onChange={(e) => setParticleInput(e.target.value)}
+                    placeholder="bijv. 3.011e23"
+                    className="w-40 rounded-lg border border-slate-300 px-3 py-2 font-mono text-sm focus:border-brand-500 focus:outline-none focus:ring-2 focus:ring-brand-500/30"
+                  />
+                  <div className="self-center text-sm text-slate-500">
+                    deeltjes
+                  </div>
+                </div>
+                {particleInput && !isNaN(parseFloat(particleInput)) && (
+                  <div className="mt-2 text-sm text-slate-700">
+                    = <span className="font-semibold">
+                      {fmt(molFromParticles(parseFloat(particleInput)))} mol
+                    </span>
+                    {" = "}
+                    <span className="font-semibold">
+                      {fmt(massFromMol(molFromParticles(parseFloat(particleInput)), result.mass))} g
+                    </span>
+                  </div>
+                )}
+              </div>
             </section>
           </>
         )}
