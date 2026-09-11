@@ -92,6 +92,10 @@ export default function BerekenPage() {
           >
             ← Terug naar vergelijkingen
           </Link>
+          <div className="mt-1 flex gap-2">
+            <Link href="/" className="text-sm text-brand-600 hover:text-brand-700">← Vergelijkingen</Link>
+            <Link href="/rekenschema" className="text-sm text-brand-600 hover:text-brand-700">Rekenschema →</Link>
+          </div>
           <h1 className="mt-2 text-3xl font-bold tracking-tight text-slate-900">
             Molecuulmassa &amp; deeltjes
           </h1>
