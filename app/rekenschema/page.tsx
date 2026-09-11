@@ -146,7 +146,7 @@ export default function RekenschemaPage() {
 
   return (
     <main className="min-h-screen px-4 py-6 sm:px-6 lg:px-8">
-      <div className="mx-auto max-w-4xl">
+      <div className="mx-auto max-w-5xl">
         <header className="mb-6">
           <Link href="/" className="text-sm text-brand-600 hover:text-brand-700">← Terug naar vergelijkingen</Link>
           <div className="mt-1 inline-block rounded-full bg-blue-100 px-2.5 py-1 text-xs font-bold uppercase tracking-wide text-brand-600">4 HAVO / VWO · chemisch rekenen</div>
@@ -171,51 +171,83 @@ export default function RekenschemaPage() {
           <h2 className="text-lg font-bold mb-1">2. Rekenschema</h2>
           <p className="text-sm text-slate-500 mb-3">Naar mol toe: delen. Van mol af: vermenigvuldigen. Vul één vakje in (groen) — de rest wordt berekend.</p>
           <div className="overflow-x-auto">
-            <div className="grid gap-2 min-w-[640px]" style={{ gridTemplateColumns: "1fr auto 1.1fr auto 1fr" }}>
-              {/* Molariteit (rij 1) */}
-              <div className={boxClass("molariteit")}>
-                {source === "molariteit" && <span className="text-xs font-bold text-green-600 bg-white px-2 py-0.5 rounded-full mb-1 inline-block">jouw gegeven</span>}
-                <h3 className="font-bold">Molariteit</h3>
-                <p className="text-xs text-slate-500 mb-2">c in mol/L</p>
+            <div
+              className="schema-grid min-w-[720px] gap-2 p-1"
+              style={{
+                display: "grid",
+                gridTemplateColumns: "minmax(160px,1fr) 90px minmax(180px,1.1fr) 90px minmax(160px,1fr)",
+                gridTemplateRows: "auto 70px auto 70px auto",
+                alignItems: "center",
+              }}
+            >
+              {/* Rij 1: molariteit boven mol */}
+              <div className={`${boxClass("molariteit")}`} style={{ gridColumn: 3, gridRow: 1 }}>
+                {source === "molariteit" && <span className="mb-1 inline-block rounded-full bg-white px-2 py-0.5 text-xs font-bold text-green-600">jouw gegeven</span>}
+                <h3 className="font-bold">Molairiteit</h3>
+                <p className="mb-2 text-xs text-slate-500">c in mol/L — samen met volume van de oplossing</p>
                 <input value={vals.molariteit} onChange={(e) => onField("molariteit", e.target.value)} className={iCls} inputMode="decimal" placeholder="mol/L" />
                 <label className={`${lCls} mt-2`}>Volume oplossing (mL)</label>
-                <input value={volOpl} onChange={(e) => { setVolOpl(e.target.value); onParam(); }} className={iCls} inputMode="decimal" placeholder="bijv. 250" />
+                <input value={volOpl} onChange={(e) => { setVolOpl(e.target.value); onParam(); }} className={iCls} inputMode="decimal" placeholder="bijv. 250 mL" />
               </div>
-              <div className="flex flex-col items-center justify-center text-brand-600 font-bold text-xs"><div>: V</div><div className="text-2xl">↕</div><div>× V</div></div>
-              {/* Massa (rij 2, links) */}
-              <div className={boxClass("gram")}>
-                {source === "gram" && <span className="text-xs font-bold text-green-600 bg-white px-2 py-0.5 rounded-full mb-1 inline-block">jouw gegeven</span>}
-                <h3 className="font-bold">Massa</h3><p className="text-xs text-slate-500 mb-2">m in gram</p>
+
+              {/* Pijl molariteit ↔ mol */}
+              <div className="flex flex-col items-center justify-center text-center text-xs font-bold text-brand-600" style={{ gridColumn: 3, gridRow: 2 }}>
+                <div>× V &nbsp;:&nbsp; : V</div>
+                <div className="text-2xl leading-none">↕</div>
+                <div>V in liter</div>
+              </div>
+
+              {/* Rij 3: massa — mol — deeltjes */}
+              <div className={boxClass("gram")} style={{ gridColumn: 1, gridRow: 3 }}>
+                {source === "gram" && <span className="mb-1 inline-block rounded-full bg-white px-2 py-0.5 text-xs font-bold text-green-600">jouw gegeven</span>}
+                <h3 className="font-bold">Massa</h3>
+                <p className="mb-2 text-xs text-slate-500">m in gram</p>
                 <input value={vals.gram} onChange={(e) => onField("gram", e.target.value)} className={iCls} inputMode="decimal" placeholder="g" />
               </div>
-              <div className="flex flex-col items-center justify-center text-brand-600 font-bold text-xs"><div>: M</div><div className="text-2xl">↔</div><div>× M</div></div>
-              {/* Mol (rij 2, midden) */}
-              <div className={boxMol}>
-                {source === "mol" && <span className="text-xs font-bold text-green-600 bg-white px-2 py-0.5 rounded-full mb-1 inline-block">jouw gegeven</span>}
-                <h3 className="font-bold">Aantal mol</h3><p className="text-xs text-blue-100 mb-2">n — knooppunt</p>
-                <input value={vals.mol} onChange={(e) => onField("mol", e.target.value)} className={`${iCls} font-bold border-transparent`} inputMode="decimal" placeholder="mol" />
+              <div className="flex flex-col items-center justify-center text-center text-xs font-bold text-brand-600" style={{ gridColumn: 2, gridRow: 3 }}>
+                <div>: M &nbsp;↔&nbsp; × M</div>
+                <div className="text-2xl leading-none">↔</div>
               </div>
-              <div className="flex flex-col items-center justify-center text-brand-600 font-bold text-xs"><div>× N<sub>A</sub></div><div className="text-2xl">↔</div><div>: N<sub>A</sub></div></div>
-              {/* Deeltjes (rij 2, rechts) */}
-              <div className={boxClass("deeltjes")}>
-                {source === "deeltjes" && <span className="text-xs font-bold text-green-600 bg-white px-2 py-0.5 rounded-full mb-1 inline-block">jouw gegeven</span>}
-                <h3 className="font-bold">Aantal deeltjes</h3><p className="text-xs text-slate-500 mb-2">N</p>
-                <input value={vals.deeltjes} onChange={(e) => onField("deeltjes", e.target.value)} className={iCls} inputMode="decimal" placeholder="6,022e23" />
+              <div className={boxMol} style={{ gridColumn: 3, gridRow: 3 }}>
+                {source === "mol" && <span className="mb-1 inline-block rounded-full bg-white px-2 py-0.5 text-xs font-bold text-green-600">jouw gegeven</span>}
+                <h3 className="font-bold">Aantal mol</h3>
+                <p className="mb-2 text-xs text-blue-100">n — het knooppunt</p>
+                <input value={vals.mol} onChange={(e) => onField("mol", e.target.value)} className={`${iCls} font-bold`} inputMode="decimal" placeholder="mol" />
               </div>
-              {/* Volume stof (rij 3, links) */}
-              <div className={boxClass("volume")}>
-                {source === "volume" && <span className="text-xs font-bold text-green-600 bg-white px-2 py-0.5 rounded-full mb-1 inline-block">jouw gegeven</span>}
-                <h3 className="font-bold">Volume stof</h3><p className="text-xs text-slate-500 mb-2">cm³ / mL</p>
+              <div className="flex flex-col items-center justify-center text-center text-xs font-bold text-brand-600" style={{ gridColumn: 4, gridRow: 3 }}>
+                <div>× N<sub>A</sub> &nbsp;↔&nbsp; : N<sub>A</sub></div>
+                <div className="text-2xl leading-none">↔</div>
+              </div>
+              <div className={boxClass("deeltjes")} style={{ gridColumn: 5, gridRow: 3 }}>
+                {source === "deeltjes" && <span className="mb-1 inline-block rounded-full bg-white px-2 py-0.5 text-xs font-bold text-green-600">jouw gegeven</span>}
+                <h3 className="font-bold">Aantal deeltjes</h3>
+                <p className="mb-2 text-xs text-slate-500">N (atomen, moleculen, ionen)</p>
+                <input value={vals.deeltjes} onChange={(e) => onField("deeltjes", e.target.value)} className={iCls} inputMode="decimal" placeholder="bijv. 6,022e23" />
+              </div>
+
+              {/* Pijlen naar beneden */}
+              <div className="flex flex-col items-center justify-center text-center text-xs font-bold text-brand-600" style={{ gridColumn: 1, gridRow: 4 }}>
+                <div>: ρ &nbsp;↕&nbsp; × ρ</div>
+                <div className="text-2xl leading-none">↕</div>
+              </div>
+              <div className="flex flex-col items-center justify-center text-center text-xs font-bold text-brand-600" style={{ gridColumn: 3, gridRow: 4 }}>
+                <div>× V<sub>m</sub> &nbsp;↕&nbsp; : V<sub>m</sub></div>
+                <div className="text-2xl leading-none">↕</div>
+              </div>
+
+              {/* Rij 5: volume stof onder massa, gasvolume onder mol */}
+              <div className={boxClass("volume")} style={{ gridColumn: 1, gridRow: 5 }}>
+                {source === "volume" && <span className="mb-1 inline-block rounded-full bg-white px-2 py-0.5 text-xs font-bold text-green-600">jouw gegeven</span>}
+                <h3 className="font-bold">Volume stof</h3>
+                <p className="mb-2 text-xs text-slate-500">cm³ of mL (via dichtheid)</p>
                 <input value={vals.volume} onChange={(e) => onField("volume", e.target.value)} className={iCls} inputMode="decimal" placeholder="cm³" />
               </div>
-              <div className="flex flex-col items-center justify-center text-brand-600 font-bold text-xs"><div>× ρ</div><div className="text-2xl">↕</div><div>: ρ</div></div>
-              {/* Gasvolume (rij 3, midden) */}
-              <div className={boxClass("gasvolume")}>
-                {source === "gasvolume" && <span className="text-xs font-bold text-green-600 bg-white px-2 py-0.5 rounded-full mb-1 inline-block">jouw gegeven</span>}
-                <h3 className="font-bold">Volume gas</h3><p className="text-xs text-slate-500 mb-2">dm³ bij STP</p>
+              <div className={boxClass("gasvolume")} style={{ gridColumn: 3, gridRow: 5 }}>
+                {source === "gasvolume" && <span className="mb-1 inline-block rounded-full bg-white px-2 py-0.5 text-xs font-bold text-green-600">jouw gegeven</span>}
+                <h3 className="font-bold">Volume gas</h3>
+                <p className="mb-2 text-xs text-slate-500">dm³ bij STP (0 °C, 1 atm)</p>
                 <input value={vals.gasvolume} onChange={(e) => onField("gasvolume", e.target.value)} className={iCls} inputMode="decimal" placeholder="dm³" />
               </div>
-              <div></div><div></div>
             </div>
           </div>
           {warn && <div className="mt-3 rounded-lg bg-red-50 px-3 py-2 text-sm text-red-700">{warn}</div>}
