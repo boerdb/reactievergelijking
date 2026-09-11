@@ -16,7 +16,9 @@ export const metadata: Metadata = {
   },
   appleWebApp: {
     capable: true,
-    statusBarStyle: "black-translucent",
+    // "default" = ondoorzichtige statusbalk, zodat content niet door klok/batterij loopt.
+    // (black-translucent tekent de pagina onder de statusbalk door.)
+    statusBarStyle: "default",
     title: "Reacties",
   },
 };
@@ -26,6 +28,7 @@ export const viewport: Viewport = {
   width: "device-width",
   initialScale: 1,
   maximumScale: 1,
+  viewportFit: "cover",
 };
 
 export default function RootLayout({
