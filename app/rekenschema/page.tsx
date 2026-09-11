@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useCallback } from "react";
+import { useState } from "react";
 import Link from "next/link";
 
 const NA = 6.022e23;
@@ -26,6 +26,8 @@ const SUBSTANCES = [
 ];
 
 type FId = "mol" | "gram" | "deeltjes" | "molariteit" | "volume" | "gasvolume";
+
+const EMPTY: Record<FId, string> = { mol: "", gram: "", deeltjes: "", molariteit: "", volume: "", gasvolume: "" };
 
 function pNL(v: string): number {
   const r = v.trim().replace(/\s+/g, "").replace(",", ".");
@@ -63,72 +65,188 @@ export default function RekenschemaPage() {
   const [vmVol, setVmVol] = useState("");
   const [vmRes, setVmRes] = useState("");
 
-  const gM = useCallback(() => pNL(M), [M]);
-  const gR = useCallback(() => pNL(rho), [rho]);
-  const gVm = useCallback(() => { const v = pNL(Vm); return isFinite(v) ? v : 22.4; }, [Vm]);
-  const gVop = useCallback(() => { const ml = pNL(volOpl); return isFinite(ml) ? ml / 1000 : NaN; }, [volOpl]);
-
-  function recalc(src: FId | null) {
-    if (!src) { setSteps([]); setWarn(""); return; }
+  function recalc(src: FId, sourceVal: string, p: { M: string; rho: string; Vm: string; volOpl: string }) {
     const ns: string[] = [];
     let n = NaN;
-    const Mv = gM(), rV = gR(), Vmv = gVm(), Vop = gVop();
-    const sv = pNL(vals[src]);
-    if (src === "mol") { n = sv; if (isFinite(n)) ns.push(`Je start bij het knooppunt: <strong>n = ${fD(n)} mol</strong>.`); }
-    else if (src === "gram") {
-      const m = sv; if (!isFinite(m)) { setSteps([]); setWarn(""); return; }
-      if (!isFinite(Mv) || Mv === 0) { setWarn("Vul de molaire massa M in. n = m / M."); ns.push(`Je vulde <strong>${fD(m)} g</strong> in. Vul <strong>M</strong> in.`); setSteps(ns); return; }
-      n = m / Mv; ns.push(`Van gram naar mol: <strong>n = m / M = ${fD(m)} / ${fD(Mv, 3)} = ${fD(n)} mol</strong>.`);
+    const Mv = pNL(p.M);
+    const rV = pNL(p.rho);
+    const Vmv = (() => { const v = pNL(p.Vm); return isFinite(v) ? v : 22.4; })();
+    const Vop = (() => { const ml = pNL(p.volOpl); return isFinite(ml) ? ml / 1000 : NaN; })();
+    const sv = pNL(sourceVal);
+
+    if (src === "mol") {
+      n = sv;
+      if (isFinite(n)) ns.push(`Je start bij het knooppunt: <strong>n = ${fD(n)} mol</strong>.`);
+    } else if (src === "gram") {
+      const m = sv;
+      if (!isFinite(m)) { setSteps([]); setWarn(""); return; }
+      if (!isFinite(Mv) || Mv === 0) {
+        setWarn("Vul de molaire massa M in. n = m / M.");
+        ns.push(`Je vulde <strong>${fD(m)} g</strong> in. Vul <strong>M</strong> in.`);
+        setVals({ ...EMPTY, gram: sourceVal });
+        setSteps(ns);
+        return;
+      }
+      n = m / Mv;
+      ns.push(`Van gram naar mol: <strong>n = m / M = ${fD(m)} / ${fD(Mv, 3)} = ${fD(n)} mol</strong>.`);
     } else if (src === "deeltjes") {
-      const N = sv; if (!isFinite(N)) { setSteps([]); setWarn(""); return; }
-      n = N / NA; ns.push(`Van deeltjes naar mol: <strong>n = N / N<sub>A</sub> = ${fS(N)} / 6,022 × 10²³ = ${fD(n)} mol</strong>.`);
+      const N = sv;
+      if (!isFinite(N)) { setSteps([]); setWarn(""); return; }
+      n = N / NA;
+      ns.push(`Van deeltjes naar mol: <strong>n = N / N<sub>A</sub> = ${fS(N)} / 6,022 × 10²³ = ${fD(n)} mol</strong>.`);
     } else if (src === "gasvolume") {
-      const Vg = sv; if (!isFinite(Vg)) { setSteps([]); setWarn(""); return; }
-      n = Vg / Vmv; ns.push(`Van gasvolume naar mol: <strong>n = V / V<sub>m</sub> = ${fD(Vg)} / ${fD(Vmv, 2)} = ${fD(n)} mol</strong>.`);
+      const Vg = sv;
+      if (!isFinite(Vg)) { setSteps([]); setWarn(""); return; }
+      n = Vg / Vmv;
+      ns.push(`Van gasvolume naar mol: <strong>n = V / V<sub>m</sub> = ${fD(Vg)} / ${fD(Vmv, 2)} = ${fD(n)} mol</strong>.`);
     } else if (src === "molariteit") {
-      const c = sv; if (!isFinite(c)) { setSteps([]); setWarn(""); return; }
-      if (!isFinite(Vop)) { setWarn("Vul het volume van de oplossing in (mL)."); ns.push(`Je vulde <strong>c = ${fD(c)} mol/L</strong> in. Zet er het volume bij.`); setSteps(ns); return; }
-      n = c * Vop; ns.push(`Van molariteit naar mol: <strong>n = c × V = ${fD(c)} × ${fD(Vop)} L = ${fD(n)} mol</strong>.`);
+      const c = sv;
+      if (!isFinite(c)) { setSteps([]); setWarn(""); return; }
+      if (!isFinite(Vop)) {
+        setWarn("Vul het volume van de oplossing in (mL).");
+        ns.push(`Je vulde <strong>c = ${fD(c)} mol/L</strong> in. Zet er het volume bij.`);
+        setVals({ ...EMPTY, molariteit: sourceVal });
+        setSteps(ns);
+        return;
+      }
+      n = c * Vop;
+      ns.push(`Van molariteit naar mol: <strong>n = c × V = ${fD(c)} × ${fD(Vop)} L = ${fD(n)} mol</strong>.`);
     } else if (src === "volume") {
-      const V = sv; if (!isFinite(V)) { setSteps([]); setWarn(""); return; }
-      if (!isFinite(rV) || rV === 0) { setWarn("Vul de dichtheid ρ in."); setSteps(ns); return; }
-      const m = V * rV; ns.push(`Van volume naar gram: <strong>m = V × ρ = ${fD(V)} × ${fD(rV, 3)} = ${fD(m)} g</strong>.`);
-      if (!isFinite(Mv) || Mv === 0) { setWarn("Vul ook M in."); setVals((p) => ({ ...p, gram: fD(m) })); setSteps(ns); return; }
-      n = m / Mv; ns.push(`Daarna naar mol: <strong>n = m / M = ${fD(m)} / ${fD(Mv, 3)} = ${fD(n)} mol</strong>.`);
+      const V = sv;
+      if (!isFinite(V)) { setSteps([]); setWarn(""); return; }
+      if (!isFinite(rV) || rV === 0) {
+        setWarn("Vul de dichtheid ρ in.");
+        setVals({ ...EMPTY, volume: sourceVal });
+        setSteps(ns);
+        return;
+      }
+      const m = V * rV;
+      ns.push(`Van volume naar gram: <strong>m = V × ρ = ${fD(V)} × ${fD(rV, 3)} = ${fD(m)} g</strong>.`);
+      if (!isFinite(Mv) || Mv === 0) {
+        setWarn("Vul ook M in.");
+        setVals({ ...EMPTY, volume: sourceVal, gram: fD(m) });
+        setSteps(ns);
+        return;
+      }
+      n = m / Mv;
+      ns.push(`Daarna naar mol: <strong>n = m / M = ${fD(m)} / ${fD(Mv, 3)} = ${fD(n)} mol</strong>.`);
     }
+
     if (!isFinite(n)) { setSteps([]); setWarn(""); return; }
     setWarn("");
-    const nv: Record<FId, string> = { ...vals };
+
+    const nv: Record<FId, string> = { ...EMPTY, [src]: sourceVal };
     if (src !== "mol") nv.mol = fD(n);
-    if (src !== "deeltjes") { const N = n * NA; nv.deeltjes = N.toExponential(3).replace(".", ","); ns.push(`Van mol naar deeltjes: <strong>N = n × N<sub>A</sub> = ${fD(n)} × 6,022 × 10²³ = ${fS(N)}</strong>.`); }
-    if (src !== "gasvolume") { const Vg = n * Vmv; nv.gasvolume = fD(Vg); ns.push(`Van mol naar gas: <strong>V = n × V<sub>m</sub> = ${fD(n)} × ${fD(Vmv, 2)} = ${fD(Vg, 3)} dm³</strong>.`); }
+    if (src !== "deeltjes") {
+      const N = n * NA;
+      nv.deeltjes = N.toExponential(3).replace(".", ",");
+      ns.push(`Van mol naar deeltjes: <strong>N = n × N<sub>A</sub> = ${fD(n)} × 6,022 × 10²³ = ${fS(N)}</strong>.`);
+    }
+    if (src !== "gasvolume") {
+      const Vg = n * Vmv;
+      nv.gasvolume = fD(Vg);
+      ns.push(`Van mol naar gas: <strong>V = n × V<sub>m</sub> = ${fD(n)} × ${fD(Vmv, 2)} = ${fD(Vg, 3)} dm³</strong>.`);
+    }
     if (isFinite(Mv) && Mv !== 0) {
       const m = n * Mv;
-      if (src !== "gram") { nv.gram = fD(m); ns.push(`Van mol naar gram: <strong>m = n × M = ${fD(n)} × ${fD(Mv, 3)} = ${fD(m, 3)} g</strong>.`); }
-      if (isFinite(rV) && rV !== 0 && src !== "volume") { const V = m / rV; nv.volume = fD(V); ns.push(`Van gram naar volume: <strong>V = m / ρ = ${fD(m, 3)} / ${fD(rV, 3)} = ${fD(V, 3)} cm³</strong>.`); }
+      if (src !== "gram") {
+        nv.gram = fD(m);
+        ns.push(`Van mol naar gram: <strong>m = n × M = ${fD(n)} × ${fD(Mv, 3)} = ${fD(m, 3)} g</strong>.`);
+      }
+      if (isFinite(rV) && rV !== 0 && src !== "volume") {
+        const V = m / rV;
+        nv.volume = fD(V);
+        ns.push(`Van gram naar volume: <strong>V = m / ρ = ${fD(m, 3)} / ${fD(rV, 3)} = ${fD(V, 3)} cm³</strong>.`);
+      }
     }
-    if (isFinite(Vop) && Vop !== 0 && src !== "molariteit") { const c = n / Vop; nv.molariteit = fD(c); ns.push(`Van mol naar molariteit: <strong>c = n / V = ${fD(n)} / ${fD(Vop)} L = ${fD(c)} mol/L</strong>.`); }
-    setVals(nv); setSteps(ns);
+    if (isFinite(Vop) && Vop !== 0 && src !== "molariteit") {
+      const c = n / Vop;
+      nv.molariteit = fD(c);
+      ns.push(`Van mol naar molariteit: <strong>c = n / V = ${fD(n)} / ${fD(Vop)} L = ${fD(c)} mol/L</strong>.`);
+    }
+    setVals(nv);
+    setSteps(ns);
+  }
+
+  function params(extra?: Partial<{ M: string; rho: string; Vm: string; volOpl: string }>) {
+    return { M: extra?.M ?? M, rho: extra?.rho ?? rho, Vm: extra?.Vm ?? Vm, volOpl: extra?.volOpl ?? volOpl };
   }
 
   function onField(id: FId, v: string) {
-    setVals((p) => ({ ...p, [id]: v }));
     const s = v.trim() ? id : null;
     setSource(s);
-    if (s) { setVals((p) => { const n = { ...p }; (Object.keys(n) as FId[]).forEach((k) => { if (k !== s) n[k] = ""; }); return { ...n, [id]: v }; }); setTimeout(() => recalc(s), 0); }
-    else { setSteps([]); setWarn(""); }
+    if (!s) {
+      setVals(EMPTY);
+      setSteps([]);
+      setWarn("");
+      return;
+    }
+    recalc(s, v, params());
   }
-  function onParam() { if (source) { setVals((p) => { const n = { ...p }; (Object.keys(n) as FId[]).forEach((k) => { if (k !== source) n[k] = ""; }); return n; }); setTimeout(() => recalc(source), 0); } }
-  function clearAll() { setSource(null); setVals({ mol: "", gram: "", deeltjes: "", molariteit: "", volume: "", gasvolume: "" }); setM(""); setRho(""); setVm("22,4"); setVolOpl(""); setStof(""); setSteps([]); setWarn(""); }
-  function loadEx(ex: string) { clearAll(); setTimeout(() => {
-    if (ex === "water") { setStof("H2O"); setM("18"); setRho("1"); setSource("gram"); setVals((v) => ({ ...v, gram: "36" })); setTimeout(() => recalc("gram"), 0); }
-    else if (ex === "zuurstof") { setStof("O2"); setM("31,998"); setSource("gasvolume"); setVals((v) => ({ ...v, gasvolume: "11,2" })); setTimeout(() => recalc("gasvolume"), 0); }
-    else if (ex === "zoutzuur") { setStof("HCl"); setM("36,461"); setVolOpl("250"); setSource("molariteit"); setVals((v) => ({ ...v, molariteit: "0,10" })); setTimeout(() => recalc("molariteit"), 0); }
-    else if (ex === "deeltjes") { setStof("H2O"); setM("18,015"); setRho("1"); setSource("deeltjes"); setVals((v) => ({ ...v, deeltjes: "6,022e23" })); setTimeout(() => recalc("deeltjes"), 0); }
-  }, 50); }
-  function onStof(v: string) { setStof(v); const o = SUBSTANCES.find((s) => s.v === v); if (o) { setM(o.m); setRho(o.r); } if (source) { setVals((p) => { const n = { ...p }; (Object.keys(n) as FId[]).forEach((k) => { if (k !== source) n[k] = ""; }); return n; }); setTimeout(() => recalc(source), 0); } }
-  function updRho() { const m = pNL(rhoMass), V = pNL(rhoVol); if (!isFinite(m) || !isFinite(V)) { setRhoRes("Typ massa en volume → dan verschijnt ρ hier."); return; } if (V === 0) { setRhoRes("Volume mag niet 0 zijn."); return; } const r = m / V; setRhoRes(`<strong>ρ = m / V = ${fD(m)} / ${fD(V)} = ${fD(r, 3)} g/cm³</strong><br> = ${fD(r, 3)} g/mL`); }
-  function updVm(src: "mol" | "vol") { const F = 22.4; if (src === "mol") { const n = pNL(vmMol); if (!isFinite(n)) { setVmRes(""); return; } const v = n * F; setVmVol(fD(v, 3)); setVmRes(`<strong>V = n × V<sub>m</sub> = ${fD(n)} × 22,4 = ${fD(v, 3)} dm³</strong>`); } else { const V = pNL(vmVol); if (!isFinite(V)) { setVmRes(""); return; } const n = V / F; setVmMol(fD(n)); setVmRes(`<strong>n = V / V<sub>m</sub> = ${fD(V)} / 22,4 = ${fD(n)} mol</strong>`); } }
+
+  function onParam(extra?: Partial<{ M: string; rho: string; Vm: string; volOpl: string }>) {
+    if (source && vals[source].trim()) recalc(source, vals[source], params(extra));
+  }
+
+  function clearAll() {
+    setSource(null);
+    setVals(EMPTY);
+    setM(""); setRho(""); setVm("22,4"); setVolOpl(""); setStof("");
+    setSteps([]); setWarn("");
+  }
+
+  function loadEx(ex: string) {
+    if (ex === "water") {
+      setStof("H2O"); setM("18"); setRho("1"); setVm("22,4"); setVolOpl("");
+      setSource("gram");
+      recalc("gram", "36", { M: "18", rho: "1", Vm: "22,4", volOpl: "" });
+    } else if (ex === "zuurstof") {
+      setStof("O2"); setM("31,998"); setRho(""); setVm("22,4"); setVolOpl("");
+      setSource("gasvolume");
+      recalc("gasvolume", "11,2", { M: "31,998", rho: "", Vm: "22,4", volOpl: "" });
+    } else if (ex === "zoutzuur") {
+      setStof("HCl"); setM("36,461"); setRho(""); setVm("22,4"); setVolOpl("250");
+      setSource("molariteit");
+      recalc("molariteit", "0,10", { M: "36,461", rho: "", Vm: "22,4", volOpl: "250" });
+    } else if (ex === "deeltjes") {
+      setStof("H2O"); setM("18,015"); setRho("1"); setVm("22,4"); setVolOpl("");
+      setSource("deeltjes");
+      recalc("deeltjes", "6,022e23", { M: "18,015", rho: "1", Vm: "22,4", volOpl: "" });
+    }
+  }
+
+  function onStof(v: string) {
+    setStof(v);
+    const o = SUBSTANCES.find((s) => s.v === v);
+    const nextM = o ? o.m : M;
+    const nextRho = o ? o.r : rho;
+    if (o) { setM(o.m); setRho(o.r); }
+    if (source && vals[source].trim()) recalc(source, vals[source], params({ M: nextM, rho: nextRho }));
+  }
+
+  function updRho() {
+    const m = pNL(rhoMass), V = pNL(rhoVol);
+    if (!isFinite(m) || !isFinite(V)) { setRhoRes("Typ massa en volume → dan verschijnt ρ hier."); return; }
+    if (V === 0) { setRhoRes("Volume mag niet 0 zijn."); return; }
+    const r = m / V;
+    setRhoRes(`<strong>ρ = m / V = ${fD(m)} / ${fD(V)} = ${fD(r, 3)} g/cm³</strong><br> = ${fD(r, 3)} g/mL`);
+  }
+  function updVm(src: "mol" | "vol") {
+    const F = 22.4;
+    if (src === "mol") {
+      const n = pNL(vmMol);
+      if (!isFinite(n)) { setVmRes(""); return; }
+      const v = n * F;
+      setVmVol(fD(v, 3));
+      setVmRes(`<strong>V = n × V<sub>m</sub> = ${fD(n)} × 22,4 = ${fD(v, 3)} dm³</strong>`);
+    } else {
+      const V = pNL(vmVol);
+      if (!isFinite(V)) { setVmRes(""); return; }
+      const n = V / F;
+      setVmMol(fD(n));
+      setVmRes(`<strong>n = V / V<sub>m</sub> = ${fD(V)} / 22,4 = ${fD(n)} mol</strong>`);
+    }
+  }
 
   const iCls = "w-full rounded-lg border-2 border-slate-200 px-3 py-2 text-base focus:border-brand-500 focus:outline-none focus:ring-2 focus:ring-brand-500/20";
   const lCls = "block text-xs font-bold uppercase tracking-wide text-slate-500 mb-1";
@@ -160,9 +278,9 @@ export default function RekenschemaPage() {
           <p className="text-sm text-slate-500 mb-3">Zonder M kun je niet van gram naar mol. Zonder volume van de oplossing kun je niet van molariteit naar mol.</p>
           <div className="grid grid-cols-1 sm:grid-cols-4 gap-3">
             <div><label className={lCls}>Stof</label><select value={stof} onChange={(e) => onStof(e.target.value)} className={iCls}>{SUBSTANCES.map((s) => <option key={s.v} value={s.v}>{s.l}</option>)}</select></div>
-            <div><label className={lCls}>Molaire massa M (g/mol)</label><input value={M} onChange={(e) => { setM(e.target.value); onParam(); }} className={iCls} inputMode="decimal" placeholder="bijv. 18,02" /></div>
-            <div><label className={lCls}>Dichtheid ρ (g/cm³)</label><input value={rho} onChange={(e) => { setRho(e.target.value); onParam(); }} className={iCls} inputMode="decimal" placeholder="vloeistof" /></div>
-            <div><label className={lCls}>Molaire volume V<sub>m</sub></label><input value={Vm} onChange={(e) => { setVm(e.target.value); onParam(); }} className={iCls} inputMode="decimal" /></div>
+            <div><label className={lCls}>Molaire massa M (g/mol)</label><input value={M} onChange={(e) => { setM(e.target.value); onParam({ M: e.target.value }); }} className={iCls} inputMode="decimal" placeholder="bijv. 18,02" /></div>
+            <div><label className={lCls}>Dichtheid ρ (g/cm³)</label><input value={rho} onChange={(e) => { setRho(e.target.value); onParam({ rho: e.target.value }); }} className={iCls} inputMode="decimal" placeholder="vloeistof" /></div>
+            <div><label className={lCls}>Molaire volume V<sub>m</sub></label><input value={Vm} onChange={(e) => { setVm(e.target.value); onParam({ Vm: e.target.value }); }} className={iCls} inputMode="decimal" /></div>
           </div>
         </section>
 
@@ -187,7 +305,7 @@ export default function RekenschemaPage() {
                 <p className="mb-2 text-xs text-slate-500">c in mol/L — samen met volume van de oplossing</p>
                 <input value={vals.molariteit} onChange={(e) => onField("molariteit", e.target.value)} className={iCls} inputMode="decimal" placeholder="mol/L" />
                 <label className={`${lCls} mt-2`}>Volume oplossing (mL)</label>
-                <input value={volOpl} onChange={(e) => { setVolOpl(e.target.value); onParam(); }} className={iCls} inputMode="decimal" placeholder="bijv. 250 mL" />
+                <input value={volOpl} onChange={(e) => { setVolOpl(e.target.value); onParam({ volOpl: e.target.value }); }} className={iCls} inputMode="decimal" placeholder="bijv. 250 mL" />
               </div>
 
               {/* Pijl molariteit ↔ mol */}

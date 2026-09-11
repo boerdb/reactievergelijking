@@ -2,7 +2,7 @@
 // Strategie: cache-first voor statische assets, network-first voor de HTML,
 // met fallback naar cache wanneer er geen verbinding is.
 
-const CACHE_VERSION = "reactievergelijking-v8";
+const CACHE_VERSION = "reactievergelijking-v9";
 const PRECACHE = [
   "/",
   "/manifest.webmanifest",
