@@ -192,6 +192,13 @@ export default function Page() {
             >
               📐
             </Link>
+            <Link
+              href="/molverhouding"
+              className="shrink-0 rounded-lg bg-slate-800 px-2.5 py-1.5 text-sm font-semibold text-white shadow-sm transition hover:bg-slate-900"
+              title="Molverhouding & massapercentage in een mengsel"
+            >
+              ⚖️
+            </Link>
           </div>
           <p className="mt-2 text-slate-600">
             Voer een scheikundige reactievergelijking in, controleer of hij

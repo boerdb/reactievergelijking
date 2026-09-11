@@ -701,6 +701,9 @@ export default function RekenschemaPage() {
               Molecuulmassa
             </Link>
             <span className="font-semibold text-white">Rekenschema</span>
+            <Link href="/molverhouding" className="text-blue-200 hover:text-white">
+              Molverhouding
+            </Link>
           </nav>
 
           <span className="inline-block rounded-full bg-white/10 px-3 py-1 text-xs font-bold uppercase tracking-widest text-blue-200 ring-1 ring-white/20">
