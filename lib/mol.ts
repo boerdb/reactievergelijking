@@ -53,7 +53,7 @@ export const Q: Record<FId, QuantityMeta> = {
     label: "Molariteit",
     symbol: "c",
     unit: "mol/L",
-    hint: "Concentratie van een oplossing.",
+    hint: "Concentratie — altijd samen met volume van de oplossing.",
   },
   volume: {
     label: "Volume vloeistof",
@@ -112,7 +112,9 @@ export function sup(exp: number): string {
 }
 
 function unsup(s: string): string {
-  return s.replace(/[⁻⁺⁰¹²³⁴⁵⁶⁷⁸⁹]/g, (c) => UNSUP[c] ?? c);
+  return s
+    .replace(/[−–—‒]/g, "-") // mintekens uit Word/PDF
+    .replace(/[⁻⁺⁰¹²³⁴⁵⁶⁷⁸⁹]/g, (c) => UNSUP[c] ?? c);
 }
 
 function nl(s: string): string {
@@ -121,14 +123,14 @@ function nl(s: string): string {
 
 /**
  * Leest Nederlandse getallen én wetenschappelijke notatie:
- * 1,203 × 10²⁴ · 1.203e24 · 1,203*10^24 · 6,022 x 10^23 · 2,5×10⁻²
+ * 1,203 × 10²⁴ · 1.203e24 · 1,203*10^24 · 5*10-5 · 2,5×10⁻²
  */
 export function parseNL(value: string): number {
   let s = value.trim().replace(/\s+/g, "");
   if (!s) return NaN;
 
   s = unsup(s)
-    .replace(/[×xX·]/g, "*")
+    .replace(/[×xX·⋅]/g, "*")
     .replace(/,/g, ".");
 
   // a*10^b  of  a*10b — via e-notatie voor betere float-precisie
@@ -211,6 +213,16 @@ export function toPlain(n: number): string {
     return `${m} × 10${sup(exp)}`;
   }
   return nl(String(r));
+}
+
+/** Volume in liter: liever 0,006 dan 6 × 10⁻³ — minder verwarrend in c = n ÷ V. */
+function toLiters(L: number): string {
+  if (!Number.isFinite(L)) return "";
+  if (L === 0) return "0";
+  if (Math.abs(L) >= 1e-4 && Math.abs(L) < 1e3) {
+    return nl(String(Number(L.toPrecision(6))));
+  }
+  return toPlain(L);
 }
 
 /* ------------------------------------------------------------------ */
@@ -374,7 +386,7 @@ export function solve(input: SolveInput): Solution {
       to: "mol",
       title: "Van molariteit naar mol",
       formula: "n = c × V",
-      filled: `n = ${g(x)} × ${g(Vopl)}`,
+      filled: `n = ${g(x)} × ${toLiters(Vopl)}`,
       answer: `${p(n)} mol`,
       note: "Let op: hier vermenigvuldig je, ook al ga je naar mol toe. V in liter!",
     });
@@ -522,9 +534,9 @@ export function solve(input: SolveInput): Solution {
         to: "molariteit",
         title: "Van mol naar molariteit",
         formula: "c = n ÷ V",
-        filled: `c = ${p(n)} ÷ ${g(Vopl)}`,
+        filled: `c = ${p(n)} ÷ ${toLiters(Vopl)}`,
         answer: `${p(c)} mol/L`,
-        note: "Let op: hier deel je juist, terwijl je van mol af gaat.",
+        note: "Let op: hier deel je juist, terwijl je van mol af gaat. V staat in liter.",
       });
     } else {
       sol.blocked.molariteit = {

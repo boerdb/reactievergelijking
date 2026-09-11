@@ -94,12 +94,12 @@ const PLACEHOLDER: Record<FId, string> = {
 
 /* posities in het schema, in procenten van het tekenvlak */
 const POS: Record<FId, { x: number; y: number }> = {
-  gasvolume: { x: 50, y: 11 },
-  gram: { x: 16, y: 46 },
-  mol: { x: 50, y: 46 },
-  deeltjes: { x: 84, y: 46 },
-  volume: { x: 16, y: 85 },
-  molariteit: { x: 50, y: 85 },
+  gasvolume: { x: 50, y: 10 },
+  gram: { x: 16, y: 42 },
+  mol: { x: 50, y: 42 },
+  deeltjes: { x: 84, y: 42 },
+  volume: { x: 16, y: 82 },
+  molariteit: { x: 50, y: 82 },
 };
 
 const EDGES: { key: FId; a: FId; b: FId }[] = [
@@ -117,16 +117,16 @@ const CHIPS: {
   y: number;
   text: string;
 }[] = [
-  { key: "gram", dir: "naar", x: 33, y: 40, text: "÷ M →" },
-  { key: "gram", dir: "vanuit", x: 33, y: 52, text: "← × M" },
-  { key: "deeltjes", dir: "naar", x: 67, y: 40, text: "← ÷ Nₐ" },
-  { key: "deeltjes", dir: "vanuit", x: 67, y: 52, text: "× Nₐ →" },
-  { key: "gasvolume", dir: "naar", x: 38, y: 28, text: "÷ Vₘ ↓" },
-  { key: "gasvolume", dir: "vanuit", x: 62, y: 28, text: "↑ × Vₘ" },
-  { key: "molariteit", dir: "naar", x: 37, y: 66, text: "× V ↑" },
-  { key: "molariteit", dir: "vanuit", x: 63, y: 66, text: "↓ ÷ V" },
-  { key: "volume", dir: "naar", x: 32, y: 61, text: "× ρ ↑" },
-  { key: "volume", dir: "vanuit", x: 32, y: 70, text: "↓ ÷ ρ" },
+  { key: "gram", dir: "naar", x: 33, y: 36, text: "÷ M →" },
+  { key: "gram", dir: "vanuit", x: 33, y: 48, text: "← × M" },
+  { key: "deeltjes", dir: "naar", x: 67, y: 36, text: "← ÷ Nₐ" },
+  { key: "deeltjes", dir: "vanuit", x: 67, y: 48, text: "× Nₐ →" },
+  { key: "gasvolume", dir: "naar", x: 38, y: 25, text: "÷ Vₘ ↓" },
+  { key: "gasvolume", dir: "vanuit", x: 62, y: 25, text: "↑ × Vₘ" },
+  { key: "molariteit", dir: "naar", x: 37, y: 61, text: "× V ↑" },
+  { key: "molariteit", dir: "vanuit", x: 63, y: 61, text: "↓ ÷ V" },
+  { key: "volume", dir: "naar", x: 32, y: 57, text: "× ρ ↑" },
+  { key: "volume", dir: "vanuit", x: 32, y: 66, text: "↓ ÷ ρ" },
 ];
 
 const STEP_TO_CHIP: Record<string, string> = {
@@ -219,6 +219,15 @@ const OPGAVEN: Opgave[] = [
     source: "volume",
     raw: "25",
   },
+  {
+    titel: "Glucose in bloed",
+    vraag: "In 6 mL bloed zit 5×10⁻⁵ mol glucose. Wat is de molariteit?",
+    formule: "C6H12O6",
+    rho: "",
+    vopl: "6",
+    source: "mol",
+    raw: "5 × 10⁻⁵",
+  },
 ];
 
 /* ------------------------------------------------------------------ */
@@ -252,6 +261,10 @@ interface NodeProps {
   blocked?: Missing;
   hub?: boolean;
   onChange: (id: FId, v: string) => void;
+  /** Bij molariteit: volume van de oplossing hoort erbij (c = n / V). */
+  vopl?: string;
+  onVopl?: (v: string) => void;
+  voplNodig?: boolean;
 }
 
 function NodeCard({
@@ -263,6 +276,9 @@ function NodeCard({
   blocked,
   hub,
   onChange,
+  vopl,
+  onVopl,
+  voplNodig,
 }: NodeProps) {
   const meta = Q[id];
   const skin = SKIN[id];
@@ -342,8 +358,45 @@ function NodeCard({
         )}
       </div>
 
+      {id === "molariteit" && onVopl && (
+        <div className="mt-2">
+          <label
+            htmlFor="node-vopl"
+            className={`mb-1 block text-[10px] font-bold uppercase tracking-wide ${
+              voplNodig ? "text-amber-600" : "text-slate-500"
+            }`}
+          >
+            Volume oplossing (mL)
+          </label>
+          <div className="relative">
+            <input
+              id="node-vopl"
+              value={vopl ?? ""}
+              onChange={(e) => onVopl(e.target.value)}
+              inputMode="decimal"
+              autoComplete="off"
+              placeholder="bijv. 6"
+              aria-label="Volume van de oplossing in milliliter"
+              className={`w-full rounded-lg border-2 bg-white px-2.5 py-1.5 pr-10 text-sm font-semibold tabular-nums text-slate-900 focus:outline-none focus:ring-4 ${
+                voplNodig
+                  ? "border-amber-400 focus:border-amber-500 focus:ring-amber-500/20"
+                  : "border-slate-200 focus:border-emerald-500 focus:ring-emerald-500/20"
+              }`}
+            />
+            <span className="pointer-events-none absolute right-2.5 top-1/2 -translate-y-1/2 text-[10px] font-bold text-slate-400">
+              mL
+            </span>
+          </div>
+          {voplNodig && (
+            <p className="mt-1 text-[10px] font-semibold text-amber-700">
+              Nodig voor c = n ÷ V (V in liter)
+            </p>
+          )}
+        </div>
+      )}
+
       <div className="mt-1.5 min-h-[1.15rem] text-[11px] leading-tight">
-        {blocked ? (
+        {blocked && id !== "molariteit" ? (
           <button
             onClick={() => focusParam(blocked.param)}
             className="font-semibold text-slate-500 underline decoration-dotted underline-offset-2 hover:text-blue-600"
@@ -354,9 +407,11 @@ function NodeCard({
           <span className={hub ? "font-semibold text-blue-100" : "text-slate-500"}>
             = {pretty}
           </span>
-        ) : (
+        ) : id === "molariteit" && !voplNodig ? (
+          <span className="text-slate-400">{meta.hint}</span>
+        ) : id !== "molariteit" ? (
           <span className={hub ? "text-blue-200" : "text-slate-400"}>{meta.hint}</span>
-        )}
+        ) : null}
       </div>
     </div>
   );
@@ -543,8 +598,17 @@ export default function RekenschemaPage() {
     });
     sol.used.forEach((p) => (s[p] = "gebruikt"));
     if (sol.warn) s[sol.warn.param] = "ontbreekt";
+    // Mol zonder volume → V is nodig om molariteit te krijgen
+    if (source === "mol" && !parseNL(voplText) && sol.values.molariteit === undefined) {
+      s.Vopl = "ontbreekt";
+    }
     return s;
-  }, [sol]);
+  }, [sol, source, voplText]);
+
+  const voplNodig =
+    (source === "mol" || source === "molariteit") &&
+    !Number.isFinite(parseNL(voplText)) &&
+    sol.values.molariteit === undefined;
 
   function veldWaarde(id: FId): string {
     if (source === id) return raw;
@@ -610,6 +674,9 @@ export default function RekenschemaPage() {
     computed: source !== id && sol.values[id] !== undefined,
     blocked: sol.blocked[id],
     onChange: onVeld,
+    ...(id === "molariteit"
+      ? { vopl: voplText, onVopl: setVoplText, voplNodig }
+      : {}),
   });
 
   return (
@@ -881,10 +948,10 @@ export default function RekenschemaPage() {
           {/* --- diagram (grote schermen) --- */}
           <div
             className="relative mx-auto hidden w-full max-w-[920px] rounded-2xl bg-slate-50/70 ring-1 ring-slate-100 lg:block"
-            style={{ aspectRatio: "11 / 9" }}
+            style={{ aspectRatio: "11 / 10" }}
           >
             <div
-              className="pointer-events-none absolute left-1/2 top-[46%] h-72 w-72 -translate-x-1/2 -translate-y-1/2 rounded-full bg-blue-400/20 blur-3xl"
+              className="pointer-events-none absolute left-1/2 top-[42%] h-72 w-72 -translate-x-1/2 -translate-y-1/2 rounded-full bg-blue-400/20 blur-3xl"
               aria-hidden
             />
 
@@ -956,7 +1023,7 @@ export default function RekenschemaPage() {
                 style={{
                   left: `${POS[id].x}%`,
                   top: `${POS[id].y}%`,
-                  width: id === "mol" ? 232 : 196,
+                  width: id === "mol" ? 232 : id === "molariteit" ? 220 : 196,
                 }}
               >
                 <NodeCard {...nodeProps(id)} hub={id === "mol"} />
