@@ -86,7 +86,7 @@ const SHORT_UNIT: Record<FId, string> = {
 const PLACEHOLDER: Record<FId, string> = {
   mol: "0,50",
   gram: "36",
-  deeltjes: "6,022e23",
+  deeltjes: "6,022 × 10²³",
   gasvolume: "11,2",
   molariteit: "0,10",
   volume: "25",
@@ -208,7 +208,7 @@ const OPGAVEN: Opgave[] = [
     rho: "",
     vopl: "",
     source: "deeltjes",
-    raw: "6,022e23",
+    raw: "6,022 × 10²³",
   },
   {
     titel: "25 mL ethanol",
@@ -331,9 +331,9 @@ function NodeCard({
           spellCheck={false}
           placeholder={PLACEHOLDER[id]}
           aria-label={`${meta.label} in ${meta.unit}`}
-          className={`w-full rounded-xl border-2 bg-white px-3 py-2 text-lg font-bold tabular-nums text-slate-900 placeholder:font-normal placeholder:text-slate-300 focus:outline-none focus:ring-4 ${inputRing} ${
+          className={`w-full rounded-xl border-2 bg-white px-3 py-2 font-bold tabular-nums text-slate-900 placeholder:font-normal placeholder:text-slate-300 focus:outline-none focus:ring-4 ${inputRing} ${
             unit ? "pr-14" : ""
-          }`}
+          } ${value.length > 12 ? "text-base" : "text-lg"}`}
         />
         {unit && (
           <span className="pointer-events-none absolute right-3 top-1/2 -translate-y-1/2 text-xs font-bold text-slate-400">
@@ -836,9 +836,9 @@ export default function RekenschemaPage() {
                 </p>
               </div>
             </div>
-            <div className="flex items-center gap-2">
+            <div className="flex flex-wrap items-center gap-2">
               <span className="text-xs font-bold uppercase tracking-wide text-slate-500">
-                afronden op
+                significante cijfers
               </span>
               <div className="flex overflow-hidden rounded-lg ring-1 ring-slate-200">
                 {[2, 3, 4, 5].map((s) => (
@@ -855,7 +855,9 @@ export default function RekenschemaPage() {
                   </button>
                 ))}
               </div>
-              <span className="text-xs text-slate-500">sig. cijfers</span>
+              <span className="text-xs text-slate-500">
+                · grote/kleine getallen als a × 10ⁿ
+              </span>
             </div>
           </div>
 
@@ -1144,13 +1146,13 @@ export default function RekenschemaPage() {
             </div>
             <div className="rounded-xl bg-slate-900 p-3 text-white">
               <div className="text-[11px] font-bold uppercase tracking-wider text-slate-400">
-                Handig
+                Wetenschappelijke notatie
               </div>
               <div className="font-mono text-lg font-black">
-                1 mL = 1 cm³
+                a × 10ⁿ
               </div>
               <div className="text-xs text-slate-400">
-                en 1 dm³ = 1 L = 1000 mL
+                bijv. 2,5 × 10⁻² of 1,2 × 10³ — met significante cijfers
               </div>
             </div>
           </div>

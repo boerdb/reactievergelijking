@@ -74,17 +74,6 @@ export const PARAM: Record<ParamId, { label: string; unit: string }> = {
 /* Getallen lezen en schrijven (Nederlandse notatie)                   */
 /* ------------------------------------------------------------------ */
 
-export function parseNL(value: string): number {
-  const s = value
-    .trim()
-    .replace(/\s/g, "")
-    .replace(/×10\^?/i, "e")
-    .replace(",", ".");
-  if (!s) return NaN;
-  const n = Number(s);
-  return Number.isFinite(n) ? n : NaN;
-}
-
 const SUP: Record<string, string> = {
   "-": "⁻",
   "+": "",
@@ -100,6 +89,21 @@ const SUP: Record<string, string> = {
   "9": "⁹",
 };
 
+const UNSUP: Record<string, string> = {
+  "⁻": "-",
+  "⁺": "+",
+  "⁰": "0",
+  "¹": "1",
+  "²": "2",
+  "³": "3",
+  "⁴": "4",
+  "⁵": "5",
+  "⁶": "6",
+  "⁷": "7",
+  "⁸": "8",
+  "⁹": "9",
+};
+
 export function sup(exp: number): string {
   return String(exp)
     .split("")
@@ -107,52 +111,104 @@ export function sup(exp: number): string {
     .join("");
 }
 
+function unsup(s: string): string {
+  return s.replace(/[⁻⁺⁰¹²³⁴⁵⁶⁷⁸⁹]/g, (c) => UNSUP[c] ?? c);
+}
+
 function nl(s: string): string {
   return s.replace(".", ",");
 }
 
-function isBig(n: number): boolean {
-  const a = Math.abs(n);
-  return a >= 1e5 || a < 1e-3;
-}
-
-/** Aantal decimalen dat hoort bij een gegeven aantal significante cijfers. */
-function decimalsFor(n: number, sig: number): number {
-  const e = Math.floor(Math.log10(Math.abs(n)));
-  return Math.min(20, Math.max(0, sig - 1 - e));
-}
-
 /**
- * Uitkomst met exact `sig` significante cijfers, inclusief nullen achteraan
- * (1,9978 op 2 cijfers wordt 2,0 — zo hoort het in de scheikunde).
+ * Leest Nederlandse getallen én wetenschappelijke notatie:
+ * 1,203 × 10²⁴ · 1.203e24 · 1,203*10^24 · 6,022 x 10^23 · 2,5×10⁻²
  */
-export function toMachine(n: number, sig: number): string {
-  if (!Number.isFinite(n)) return "";
-  if (n === 0) return "0";
-  if (isBig(n)) return nl(n.toExponential(sig - 1));
-  return nl(n.toFixed(decimalsFor(n, sig)));
-}
+export function parseNL(value: string): number {
+  let s = value.trim().replace(/\s+/g, "");
+  if (!s) return NaN;
 
-/** Zelfde getal, maar zoals je het in je schrift schrijft: 1,203 × 10²⁴. */
-export function toPretty(n: number, sig: number): string {
-  if (!Number.isFinite(n)) return "";
-  if (n === 0) return "0";
-  if (!isBig(n)) return nl(n.toFixed(decimalsFor(n, sig)));
-  const [mant, exp] = n.toExponential(sig - 1).split("e");
-  return `${nl(mant)} × 10${sup(Number(exp))}`;
+  s = unsup(s)
+    .replace(/[×xX·]/g, "*")
+    .replace(/,/g, ".");
+
+  // a*10^b  of  a*10b — via e-notatie voor betere float-precisie
+  const sci = s.match(/^([+-]?\d*\.?\d+(?:e[+-]?\d+)?)\*10(?:\^)?([+-]?\d+)$/i);
+  if (sci) {
+    const n = Number(`${sci[1]}e${sci[2]}`);
+    return Number.isFinite(n) ? n : NaN;
+  }
+
+  // losse "10^b"
+  const alone = s.match(/^10(?:\^)?([+-]?\d+)$/i);
+  if (alone) {
+    const n = Math.pow(10, Number(alone[1]));
+    return Number.isFinite(n) ? n : NaN;
+  }
+
+  const n = Number(s);
+  return Number.isFinite(n) ? n : NaN;
 }
 
 /**
- * Getal zoals het is ingevoerd: geen nullen erbij verzinnen. Voor jouw eigen
- * gegeven en voor constanten als M en ρ.
+ * Wanneer wetenschappelijke notatie duidelijker is voor een scheikunde-leerling.
+ * ≥ 10³ of < 10⁻¹ → a × 10ⁿ (dus ook 1,2 × 10³ en 2,5 × 10⁻²).
+ */
+export function wantsScientific(n: number, force = false): boolean {
+  if (!Number.isFinite(n) || n === 0) return false;
+  if (force) return true;
+  const a = Math.abs(n);
+  return a >= 1e3 || a < 1e-1;
+}
+
+/** Mantisse + exponent met exact `sig` significante cijfers. */
+function sciParts(n: number, sig: number): { mant: string; exp: number } {
+  const [mant, exp] = n.toExponential(Math.max(0, sig - 1)).split("e");
+  return { mant: nl(mant), exp: Number(exp) };
+}
+
+/** a × 10ⁿ — de notatie uit je lesboek. */
+export function toSci(n: number, sig: number): string {
+  if (!Number.isFinite(n)) return "";
+  if (n === 0) return "0";
+  const { mant, exp } = sciParts(n, sig);
+  return `${mant} × 10${sup(exp)}`;
+}
+
+/**
+ * Uitkomst met exact `sig` significante cijfers.
+ * Grote/kleine getallen altijd als a × 10ⁿ (niet als e+24).
+ */
+export function toMachine(n: number, sig: number, forceSci = false): string {
+  if (!Number.isFinite(n)) return "";
+  if (n === 0) return "0";
+  if (wantsScientific(n, forceSci)) return toSci(n, sig);
+
+  // toPrecision houdt rekening met afronden over een orde van grootte heen
+  // (0,99998 → 1,000) en bewaart trailing zeros.
+  const raw = n.toPrecision(sig);
+  if (/e/i.test(raw)) return toSci(n, sig);
+  return nl(raw);
+}
+
+/** Zelfde als toMachine — voor stappen en labels. */
+export function toPretty(n: number, sig: number, forceSci = false): string {
+  return toMachine(n, sig, forceSci);
+}
+
+/**
+ * Getal zoals het is ingevoerd: geen nullen erbij verzinnen.
+ * Wel al in a × 10ⁿ als het te groot/klein is.
  */
 export function toPlain(n: number): string {
   if (!Number.isFinite(n)) return "";
   if (n === 0) return "0";
   const r = Number(n.toPrecision(6));
-  if (isBig(r)) {
-    const [mant, exp] = r.toExponential().split("e");
-    return `${nl(mant)} × 10${sup(Number(exp))}`;
+  if (wantsScientific(r)) {
+    // bewaar zinvolle cijfers van de mantisse, zonder opgelegde nullen
+    const exp = Math.floor(Math.log10(Math.abs(r)));
+    const mant = r / Math.pow(10, exp);
+    const m = nl(String(Number(mant.toPrecision(6))));
+    return `${m} × 10${sup(exp)}`;
   }
   return nl(String(r));
 }
@@ -214,15 +270,17 @@ export function solve(input: SolveInput): Solution {
   const x = parseNL(raw);
   if (!Number.isFinite(x)) return sol;
 
-  const p = (v: number) => toPretty(v, sig);
+  const p = (v: number, forceSci = false) => toPretty(v, sig, forceSci);
   const g = toPlain; // gegevens en constanten: zoals ingevoerd
   const ok = (v: number) => Number.isFinite(v) && v > 0;
   const use = (id: ParamId) => {
     if (!sol.used.includes(id)) sol.used.push(id);
   };
   const set = (id: FId, v: number) => {
-    sol.values[id] = toMachine(v, sig);
-    sol.pretty[id] = `${p(v)} ${Q[id].unit}`;
+    // Deeltjes altijd in a × 10ⁿ — dat is hoe je ze in je schrift zet.
+    const forceSci = id === "deeltjes";
+    sol.values[id] = toMachine(v, sig, forceSci);
+    sol.pretty[id] = `${p(v, forceSci)} ${Q[id].unit}`;
   };
 
   let n = NaN;
@@ -382,7 +440,7 @@ export function solve(input: SolveInput): Solution {
       title: "Van mol naar deeltjes",
       formula: "N = n × Nₐ",
       filled: `N = ${p(n)} × ${NA_PRETTY}`,
-      answer: `${p(N)} deeltjes`,
+      answer: `${p(N, true)} deeltjes`,
       note: "Vanuit mol vermenigvuldig je.",
     });
   }
