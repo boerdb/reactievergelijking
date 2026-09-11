@@ -1,432 +1,1159 @@
 "use client";
 
-import { useState } from "react";
+import { useMemo, useState } from "react";
 import Link from "next/link";
+import { calculate } from "@/lib/calc";
+import { tokenizeFormula } from "@/lib/parser";
+import {
+  solve,
+  parseNL,
+  toPlain,
+  Q,
+  PARAM,
+  NA_PRETTY,
+  type FId,
+  type ParamId,
+  type Missing,
+  type Step,
+} from "@/lib/mol";
 
-const NA = 6.022e23;
+/* ------------------------------------------------------------------ */
+/* Vormgeving per grootheid                                            */
+/* ------------------------------------------------------------------ */
 
-const SUBSTANCES = [
-  { v: "", l: "Zelf invullen…", m: "", r: "" },
-  { v: "H2O", l: "Water (H₂O)", m: "18,015", r: "1" },
-  { v: "O2", l: "Zuurstof (O₂)", m: "31,998", r: "" },
-  { v: "H2", l: "Waterstof (H₂)", m: "2,016", r: "" },
-  { v: "N2", l: "Stikstof (N₂)", m: "28,014", r: "" },
-  { v: "CO2", l: "Koolstofdioxide (CO₂)", m: "44,009", r: "" },
-  { v: "CH4", l: "Methaan (CH₄)", m: "16,043", r: "" },
-  { v: "NH3", l: "Ammoniak (NH₃)", m: "17,031", r: "" },
-  { v: "NaCl", l: "Keukenzout (NaCl)", m: "58,443", r: "" },
-  { v: "HCl", l: "Zoutzuur (HCl)", m: "36,461", r: "" },
-  { v: "NaOH", l: "Natriumhydroxide (NaOH)", m: "39,997", r: "" },
-  { v: "H2SO4", l: "Zwavelzuur (H₂SO₄)", m: "98,079", r: "" },
-  { v: "C6H12O6", l: "Glucose (C₆H₁₂O₆)", m: "180,156", r: "" },
-  { v: "C2H6O", l: "Ethanol (C₂H₆O)", m: "46,068", r: "0,789" },
-  { v: "CaCO3", l: "Calciumcarbonaat (CaCO₃)", m: "100,086", r: "" },
-  { v: "Fe", l: "IJzer (Fe)", m: "55,845", r: "" },
-  { v: "Cu", l: "Koper (Cu)", m: "63,546", r: "" },
+interface Skin {
+  dot: string;
+  text: string;
+  soft: string;
+  border: string;
+  line: string;
+}
+
+const SKIN: Record<FId, Skin> = {
+  mol: {
+    dot: "bg-white",
+    text: "text-white",
+    soft: "bg-blue-600",
+    border: "border-blue-700",
+    line: "#2563eb",
+  },
+  gram: {
+    dot: "bg-amber-400",
+    text: "text-amber-700",
+    soft: "bg-amber-50",
+    border: "border-amber-200",
+    line: "#f59e0b",
+  },
+  deeltjes: {
+    dot: "bg-violet-400",
+    text: "text-violet-700",
+    soft: "bg-violet-50",
+    border: "border-violet-200",
+    line: "#8b5cf6",
+  },
+  gasvolume: {
+    dot: "bg-sky-400",
+    text: "text-sky-700",
+    soft: "bg-sky-50",
+    border: "border-sky-200",
+    line: "#0ea5e9",
+  },
+  molariteit: {
+    dot: "bg-emerald-400",
+    text: "text-emerald-700",
+    soft: "bg-emerald-50",
+    border: "border-emerald-200",
+    line: "#10b981",
+  },
+  volume: {
+    dot: "bg-rose-400",
+    text: "text-rose-700",
+    soft: "bg-rose-50",
+    border: "border-rose-200",
+    line: "#f43f5e",
+  },
+};
+
+const SHORT_UNIT: Record<FId, string> = {
+  mol: "mol",
+  gram: "g",
+  deeltjes: "",
+  gasvolume: "dm³",
+  molariteit: "mol/L",
+  volume: "mL",
+};
+
+const PLACEHOLDER: Record<FId, string> = {
+  mol: "0,50",
+  gram: "36",
+  deeltjes: "6,022e23",
+  gasvolume: "11,2",
+  molariteit: "0,10",
+  volume: "25",
+};
+
+/* posities in het schema, in procenten van het tekenvlak */
+const POS: Record<FId, { x: number; y: number }> = {
+  gasvolume: { x: 50, y: 11 },
+  gram: { x: 16, y: 46 },
+  mol: { x: 50, y: 46 },
+  deeltjes: { x: 84, y: 46 },
+  volume: { x: 16, y: 85 },
+  molariteit: { x: 50, y: 85 },
+};
+
+const EDGES: { key: FId; a: FId; b: FId }[] = [
+  { key: "gram", a: "gram", b: "mol" },
+  { key: "deeltjes", a: "mol", b: "deeltjes" },
+  { key: "gasvolume", a: "gasvolume", b: "mol" },
+  { key: "molariteit", a: "mol", b: "molariteit" },
+  { key: "volume", a: "gram", b: "volume" },
 ];
 
-type FId = "mol" | "gram" | "deeltjes" | "molariteit" | "volume" | "gasvolume";
+const CHIPS: {
+  key: FId;
+  dir: "naar" | "vanuit";
+  x: number;
+  y: number;
+  text: string;
+}[] = [
+  { key: "gram", dir: "naar", x: 33, y: 40, text: "÷ M →" },
+  { key: "gram", dir: "vanuit", x: 33, y: 52, text: "← × M" },
+  { key: "deeltjes", dir: "naar", x: 67, y: 40, text: "← ÷ Nₐ" },
+  { key: "deeltjes", dir: "vanuit", x: 67, y: 52, text: "× Nₐ →" },
+  { key: "gasvolume", dir: "naar", x: 38, y: 28, text: "÷ Vₘ ↓" },
+  { key: "gasvolume", dir: "vanuit", x: 62, y: 28, text: "↑ × Vₘ" },
+  { key: "molariteit", dir: "naar", x: 37, y: 66, text: "× V ↑" },
+  { key: "molariteit", dir: "vanuit", x: 63, y: 66, text: "↓ ÷ V" },
+  { key: "volume", dir: "naar", x: 32, y: 61, text: "× ρ ↑" },
+  { key: "volume", dir: "vanuit", x: 32, y: 70, text: "↓ ÷ ρ" },
+];
 
-const EMPTY: Record<FId, string> = { mol: "", gram: "", deeltjes: "", molariteit: "", volume: "", gasvolume: "" };
+const STEP_TO_CHIP: Record<string, string> = {
+  "gram>mol": "gram:naar",
+  "mol>gram": "gram:vanuit",
+  "deeltjes>mol": "deeltjes:naar",
+  "mol>deeltjes": "deeltjes:vanuit",
+  "gasvolume>mol": "gasvolume:naar",
+  "mol>gasvolume": "gasvolume:vanuit",
+  "molariteit>mol": "molariteit:naar",
+  "mol>molariteit": "molariteit:vanuit",
+  "volume>gram": "volume:naar",
+  "gram>volume": "volume:vanuit",
+};
 
-function pNL(v: string): number {
-  const r = v.trim().replace(/\s+/g, "").replace(",", ".");
-  return r ? Number(r) : NaN;
+/* ------------------------------------------------------------------ */
+/* Stoffen en voorbeeldopgaven                                         */
+/* ------------------------------------------------------------------ */
+
+const PRESETS: { f: string; naam: string; rho?: string }[] = [
+  { f: "H2O", naam: "water", rho: "1,00" },
+  { f: "O2", naam: "zuurstof" },
+  { f: "CO2", naam: "koolstofdioxide" },
+  { f: "N2", naam: "stikstof" },
+  { f: "CH4", naam: "methaan" },
+  { f: "NH3", naam: "ammoniak" },
+  { f: "HCl", naam: "waterstofchloride" },
+  { f: "NaCl", naam: "keukenzout" },
+  { f: "NaOH", naam: "natriumhydroxide" },
+  { f: "H2SO4", naam: "zwavelzuur", rho: "1,83" },
+  { f: "C6H12O6", naam: "glucose" },
+  { f: "C2H6O", naam: "ethanol", rho: "0,789" },
+  { f: "CaCO3", naam: "calciumcarbonaat" },
+  { f: "Fe", naam: "ijzer", rho: "7,87" },
+];
+
+interface Opgave {
+  titel: string;
+  vraag: string;
+  formule: string;
+  rho: string;
+  vopl: string;
+  source: FId;
+  raw: string;
 }
-function fD(n: number, d = 4): string {
-  if (!isFinite(n)) return "";
-  const dd = Math.abs(n) >= 100 ? 2 : d;
-  return n.toFixed(dd).replace(/(\.\d*?)0+$/, "$1").replace(/\.$/, "").replace(".", ",");
+
+const OPGAVEN: Opgave[] = [
+  {
+    titel: "36 g water",
+    vraag: "Hoeveel mol, hoeveel moleculen en hoeveel mL is dat?",
+    formule: "H2O",
+    rho: "1,00",
+    vopl: "",
+    source: "gram",
+    raw: "36",
+  },
+  {
+    titel: "11,2 dm³ zuurstof",
+    vraag: "Een gasvolume bij 0 °C omrekenen naar massa.",
+    formule: "O2",
+    rho: "",
+    vopl: "",
+    source: "gasvolume",
+    raw: "11,2",
+  },
+  {
+    titel: "250 mL 0,10 M zoutzuur",
+    vraag: "Van concentratie naar het aantal gram opgeloste stof.",
+    formule: "HCl",
+    rho: "",
+    vopl: "250",
+    source: "molariteit",
+    raw: "0,10",
+  },
+  {
+    titel: "6,022 × 10²³ deeltjes glucose",
+    vraag: "Precies één mol — wat weegt dat?",
+    formule: "C6H12O6",
+    rho: "",
+    vopl: "",
+    source: "deeltjes",
+    raw: "6,022e23",
+  },
+  {
+    titel: "25 mL ethanol",
+    vraag: "Eerst via de dichtheid naar massa, dan pas naar mol.",
+    formule: "C2H6O",
+    rho: "0,789",
+    vopl: "",
+    source: "volume",
+    raw: "25",
+  },
+];
+
+/* ------------------------------------------------------------------ */
+/* Kleine bouwstenen                                                   */
+/* ------------------------------------------------------------------ */
+
+function FormulaView({ formula }: { formula: string }) {
+  const pieces = useMemo(() => tokenizeFormula(formula), [formula]);
+  return (
+    <>
+      {pieces.map((p, i) =>
+        p.type === "sub" ? <sub key={i}>{p.value}</sub> : <span key={i}>{p.value}</span>
+      )}
+    </>
+  );
 }
-function fS(n: number): string {
-  if (!isFinite(n) || n === 0) return "0";
-  const e = Math.floor(Math.log10(Math.abs(n)));
-  return fD(n / Math.pow(10, e), 3) + " × 10" + tS(e);
-}
-function tS(e: number): string {
-  const m: Record<string, string> = { "-": "⁻", "0": "⁰", "1": "¹", "2": "²", "3": "³", "4": "⁴", "5": "⁵", "6": "⁶", "7": "⁷", "8": "⁸", "9": "⁹" };
-  return String(e).split("").map((c) => m[c] || c).join("");
+
+function focusParam(id: ParamId) {
+  const el = document.getElementById(`param-${id}`);
+  if (!el) return;
+  el.scrollIntoView({ behavior: "smooth", block: "center" });
+  window.setTimeout(() => el.focus(), 320);
 }
 
-export default function RekenschemaPage() {
-  const [stof, setStof] = useState("");
-  const [M, setM] = useState("");
-  const [rho, setRho] = useState("");
-  const [Vm, setVm] = useState("22,4");
-  const [volOpl, setVolOpl] = useState("");
-  const [vals, setVals] = useState<Record<FId, string>>({ mol: "", gram: "", deeltjes: "", molariteit: "", volume: "", gasvolume: "" });
-  const [source, setSource] = useState<FId | null>(null);
-  const [steps, setSteps] = useState<string[]>([]);
-  const [warn, setWarn] = useState("");
-  const [rhoMass, setRhoMass] = useState("");
-  const [rhoVol, setRhoVol] = useState("");
-  const [rhoRes, setRhoRes] = useState("");
-  const [vmMol, setVmMol] = useState("");
-  const [vmVol, setVmVol] = useState("");
-  const [vmRes, setVmRes] = useState("");
+interface NodeProps {
+  id: FId;
+  value: string;
+  pretty?: string;
+  isSource: boolean;
+  computed: boolean;
+  blocked?: Missing;
+  hub?: boolean;
+  onChange: (id: FId, v: string) => void;
+}
 
-  function recalc(src: FId, sourceVal: string, p: { M: string; rho: string; Vm: string; volOpl: string }) {
-    const ns: string[] = [];
-    let n = NaN;
-    const Mv = pNL(p.M);
-    const rV = pNL(p.rho);
-    const Vmv = (() => { const v = pNL(p.Vm); return isFinite(v) ? v : 22.4; })();
-    const Vop = (() => { const ml = pNL(p.volOpl); return isFinite(ml) ? ml / 1000 : NaN; })();
-    const sv = pNL(sourceVal);
+function NodeCard({
+  id,
+  value,
+  pretty,
+  isSource,
+  computed,
+  blocked,
+  hub,
+  onChange,
+}: NodeProps) {
+  const meta = Q[id];
+  const skin = SKIN[id];
+  const unit = SHORT_UNIT[id];
 
-    if (src === "mol") {
-      n = sv;
-      if (isFinite(n)) ns.push(`Je start bij het knooppunt: <strong>n = ${fD(n)} mol</strong>.`);
-    } else if (src === "gram") {
-      const m = sv;
-      if (!isFinite(m)) { setSteps([]); setWarn(""); return; }
-      if (!isFinite(Mv) || Mv === 0) {
-        setWarn("Vul de molaire massa M in. n = m / M.");
-        ns.push(`Je vulde <strong>${fD(m)} g</strong> in. Vul <strong>M</strong> in.`);
-        setVals({ ...EMPTY, gram: sourceVal });
-        setSteps(ns);
-        return;
-      }
-      n = m / Mv;
-      ns.push(`Van gram naar mol: <strong>n = m / M = ${fD(m)} / ${fD(Mv, 3)} = ${fD(n)} mol</strong>.`);
-    } else if (src === "deeltjes") {
-      const N = sv;
-      if (!isFinite(N)) { setSteps([]); setWarn(""); return; }
-      n = N / NA;
-      ns.push(`Van deeltjes naar mol: <strong>n = N / N<sub>A</sub> = ${fS(N)} / 6,022 × 10²³ = ${fD(n)} mol</strong>.`);
-    } else if (src === "gasvolume") {
-      const Vg = sv;
-      if (!isFinite(Vg)) { setSteps([]); setWarn(""); return; }
-      n = Vg / Vmv;
-      ns.push(`Van gasvolume naar mol: <strong>n = V / V<sub>m</sub> = ${fD(Vg)} / ${fD(Vmv, 2)} = ${fD(n)} mol</strong>.`);
-    } else if (src === "molariteit") {
-      const c = sv;
-      if (!isFinite(c)) { setSteps([]); setWarn(""); return; }
-      if (!isFinite(Vop)) {
-        setWarn("Vul het volume van de oplossing in (mL).");
-        ns.push(`Je vulde <strong>c = ${fD(c)} mol/L</strong> in. Zet er het volume bij.`);
-        setVals({ ...EMPTY, molariteit: sourceVal });
-        setSteps(ns);
-        return;
-      }
-      n = c * Vop;
-      ns.push(`Van molariteit naar mol: <strong>n = c × V = ${fD(c)} × ${fD(Vop)} L = ${fD(n)} mol</strong>.`);
-    } else if (src === "volume") {
-      const V = sv;
-      if (!isFinite(V)) { setSteps([]); setWarn(""); return; }
-      if (!isFinite(rV) || rV === 0) {
-        setWarn("Vul de dichtheid ρ in.");
-        setVals({ ...EMPTY, volume: sourceVal });
-        setSteps(ns);
-        return;
-      }
-      const m = V * rV;
-      ns.push(`Van volume naar gram: <strong>m = V × ρ = ${fD(V)} × ${fD(rV, 3)} = ${fD(m)} g</strong>.`);
-      if (!isFinite(Mv) || Mv === 0) {
-        setWarn("Vul ook M in.");
-        setVals({ ...EMPTY, volume: sourceVal, gram: fD(m) });
-        setSteps(ns);
-        return;
-      }
-      n = m / Mv;
-      ns.push(`Daarna naar mol: <strong>n = m / M = ${fD(m)} / ${fD(Mv, 3)} = ${fD(n)} mol</strong>.`);
-    }
+  const shell = hub
+    ? "relative rounded-2xl border-2 border-blue-800/40 bg-gradient-to-br from-indigo-600 via-blue-600 to-blue-700 p-3.5 text-white shadow-xl shadow-blue-600/30"
+    : `relative rounded-2xl border-2 bg-white p-3.5 shadow-sm transition ${
+        isSource
+          ? "border-emerald-400 shadow-emerald-100"
+          : computed
+          ? skin.border
+          : "border-slate-200"
+      }`;
 
-    if (!isFinite(n)) { setSteps([]); setWarn(""); return; }
-    setWarn("");
-
-    const nv: Record<FId, string> = { ...EMPTY, [src]: sourceVal };
-    if (src !== "mol") nv.mol = fD(n);
-    if (src !== "deeltjes") {
-      const N = n * NA;
-      nv.deeltjes = N.toExponential(3).replace(".", ",");
-      ns.push(`Van mol naar deeltjes: <strong>N = n × N<sub>A</sub> = ${fD(n)} × 6,022 × 10²³ = ${fS(N)}</strong>.`);
-    }
-    if (src !== "gasvolume") {
-      const Vg = n * Vmv;
-      nv.gasvolume = fD(Vg);
-      ns.push(`Van mol naar gas: <strong>V = n × V<sub>m</sub> = ${fD(n)} × ${fD(Vmv, 2)} = ${fD(Vg, 3)} dm³</strong>.`);
-    }
-    if (isFinite(Mv) && Mv !== 0) {
-      const m = n * Mv;
-      if (src !== "gram") {
-        nv.gram = fD(m);
-        ns.push(`Van mol naar gram: <strong>m = n × M = ${fD(n)} × ${fD(Mv, 3)} = ${fD(m, 3)} g</strong>.`);
-      }
-      if (isFinite(rV) && rV !== 0 && src !== "volume") {
-        const V = m / rV;
-        nv.volume = fD(V);
-        ns.push(`Van gram naar volume: <strong>V = m / ρ = ${fD(m, 3)} / ${fD(rV, 3)} = ${fD(V, 3)} cm³</strong>.`);
-      }
-    }
-    if (isFinite(Vop) && Vop !== 0 && src !== "molariteit") {
-      const c = n / Vop;
-      nv.molariteit = fD(c);
-      ns.push(`Van mol naar molariteit: <strong>c = n / V = ${fD(n)} / ${fD(Vop)} L = ${fD(c)} mol/L</strong>.`);
-    }
-    setVals(nv);
-    setSteps(ns);
-  }
-
-  function params(extra?: Partial<{ M: string; rho: string; Vm: string; volOpl: string }>) {
-    return { M: extra?.M ?? M, rho: extra?.rho ?? rho, Vm: extra?.Vm ?? Vm, volOpl: extra?.volOpl ?? volOpl };
-  }
-
-  function onField(id: FId, v: string) {
-    const s = v.trim() ? id : null;
-    setSource(s);
-    if (!s) {
-      setVals(EMPTY);
-      setSteps([]);
-      setWarn("");
-      return;
-    }
-    recalc(s, v, params());
-  }
-
-  function onParam(extra?: Partial<{ M: string; rho: string; Vm: string; volOpl: string }>) {
-    if (source && vals[source].trim()) recalc(source, vals[source], params(extra));
-  }
-
-  function clearAll() {
-    setSource(null);
-    setVals(EMPTY);
-    setM(""); setRho(""); setVm("22,4"); setVolOpl(""); setStof("");
-    setSteps([]); setWarn("");
-  }
-
-  function loadEx(ex: string) {
-    if (ex === "water") {
-      setStof("H2O"); setM("18"); setRho("1"); setVm("22,4"); setVolOpl("");
-      setSource("gram");
-      recalc("gram", "36", { M: "18", rho: "1", Vm: "22,4", volOpl: "" });
-    } else if (ex === "zuurstof") {
-      setStof("O2"); setM("31,998"); setRho(""); setVm("22,4"); setVolOpl("");
-      setSource("gasvolume");
-      recalc("gasvolume", "11,2", { M: "31,998", rho: "", Vm: "22,4", volOpl: "" });
-    } else if (ex === "zoutzuur") {
-      setStof("HCl"); setM("36,461"); setRho(""); setVm("22,4"); setVolOpl("250");
-      setSource("molariteit");
-      recalc("molariteit", "0,10", { M: "36,461", rho: "", Vm: "22,4", volOpl: "250" });
-    } else if (ex === "deeltjes") {
-      setStof("H2O"); setM("18,015"); setRho("1"); setVm("22,4"); setVolOpl("");
-      setSource("deeltjes");
-      recalc("deeltjes", "6,022e23", { M: "18,015", rho: "1", Vm: "22,4", volOpl: "" });
-    }
-  }
-
-  function onStof(v: string) {
-    setStof(v);
-    const o = SUBSTANCES.find((s) => s.v === v);
-    const nextM = o ? o.m : M;
-    const nextRho = o ? o.r : rho;
-    if (o) { setM(o.m); setRho(o.r); }
-    if (source && vals[source].trim()) recalc(source, vals[source], params({ M: nextM, rho: nextRho }));
-  }
-
-  function updRho() {
-    const m = pNL(rhoMass), V = pNL(rhoVol);
-    if (!isFinite(m) || !isFinite(V)) { setRhoRes("Typ massa en volume → dan verschijnt ρ hier."); return; }
-    if (V === 0) { setRhoRes("Volume mag niet 0 zijn."); return; }
-    const r = m / V;
-    setRhoRes(`<strong>ρ = m / V = ${fD(m)} / ${fD(V)} = ${fD(r, 3)} g/cm³</strong><br> = ${fD(r, 3)} g/mL`);
-  }
-  function updVm(src: "mol" | "vol") {
-    const F = 22.4;
-    if (src === "mol") {
-      const n = pNL(vmMol);
-      if (!isFinite(n)) { setVmRes(""); return; }
-      const v = n * F;
-      setVmVol(fD(v, 3));
-      setVmRes(`<strong>V = n × V<sub>m</sub> = ${fD(n)} × 22,4 = ${fD(v, 3)} dm³</strong>`);
-    } else {
-      const V = pNL(vmVol);
-      if (!isFinite(V)) { setVmRes(""); return; }
-      const n = V / F;
-      setVmMol(fD(n));
-      setVmRes(`<strong>n = V / V<sub>m</sub> = ${fD(V)} / 22,4 = ${fD(n)} mol</strong>`);
-    }
-  }
-
-  const iCls = "w-full rounded-lg border-2 border-slate-200 px-3 py-2 text-base focus:border-brand-500 focus:outline-none focus:ring-2 focus:ring-brand-500/20";
-  const lCls = "block text-xs font-bold uppercase tracking-wide text-slate-500 mb-1";
-  const boxBase = "rounded-xl border-2 p-4 text-center";
-  const boxNorm = `${boxBase} border-slate-200 bg-slate-50`;
-  const boxMol = `${boxBase} border-blue-700 bg-gradient-to-b from-brand-500 to-blue-700 text-white shadow-lg`;
-  const boxSrc = `${boxBase} border-green-500 bg-green-50 shadow-md`;
-  const boxFill = `${boxBase} border-blue-300 bg-blue-50`;
-
-  function boxClass(id: FId): string {
-    if (source === id) return boxSrc;
-    if (vals[id]) return boxFill;
-    return boxNorm;
-  }
+  const inputRing = isSource
+    ? "border-emerald-400 focus:border-emerald-500 focus:ring-emerald-500/20"
+    : "border-slate-200 focus:border-blue-500 focus:ring-blue-500/20";
 
   return (
-    <main className="min-h-screen px-4 py-6 sm:px-6 lg:px-8">
-      <div className="mx-auto max-w-5xl">
-        <header className="mb-6">
-          <Link href="/" className="text-sm text-brand-600 hover:text-brand-700">← Terug naar vergelijkingen</Link>
-          <div className="mt-1 inline-block rounded-full bg-blue-100 px-2.5 py-1 text-xs font-bold uppercase tracking-wide text-brand-600">4 HAVO / VWO · chemisch rekenen</div>
-          <h1 className="mt-2 text-2xl sm:text-3xl font-bold text-slate-900">Rekenschema: alles loopt via mol</h1>
-          <p className="mt-2 text-slate-600 max-w-2xl">Dit is geen losse rekenmachine, maar het <strong>plattegrondje uit je les</strong>. Ken je één gegeven (gram, deeltjes, gasvolume of molariteit), dan reken je <strong>eerst naar mol</strong> en vanuit mol naar de rest.</p>
-        </header>
+    <div className={shell}>
+      {isSource && (
+        <span className="absolute -top-2.5 left-3 rounded-full bg-emerald-500 px-2 py-0.5 text-[10px] font-bold uppercase tracking-wider text-white shadow">
+          jouw gegeven
+        </span>
+      )}
+      {!isSource && computed && (
+        <span
+          className={`absolute -top-2.5 left-3 rounded-full px-2 py-0.5 text-[10px] font-bold uppercase tracking-wider shadow-sm ${
+            hub ? "bg-white text-blue-700" : `${skin.soft} ${skin.text}`
+          }`}
+        >
+          berekend
+        </span>
+      )}
 
-        {/* Stofgegevens */}
-        <section className="mb-4 rounded-2xl bg-white p-5 shadow-sm ring-1 ring-slate-200">
-          <h2 className="text-lg font-bold mb-1">1. Stofgegevens</h2>
-          <p className="text-sm text-slate-500 mb-3">Zonder M kun je niet van gram naar mol. Zonder volume van de oplossing kun je niet van molariteit naar mol.</p>
-          <div className="grid grid-cols-1 sm:grid-cols-4 gap-3">
-            <div><label className={lCls}>Stof</label><select value={stof} onChange={(e) => onStof(e.target.value)} className={iCls}>{SUBSTANCES.map((s) => <option key={s.v} value={s.v}>{s.l}</option>)}</select></div>
-            <div><label className={lCls}>Molaire massa M (g/mol)</label><input value={M} onChange={(e) => { setM(e.target.value); onParam({ M: e.target.value }); }} className={iCls} inputMode="decimal" placeholder="bijv. 18,02" /></div>
-            <div><label className={lCls}>Dichtheid ρ (g/cm³)</label><input value={rho} onChange={(e) => { setRho(e.target.value); onParam({ rho: e.target.value }); }} className={iCls} inputMode="decimal" placeholder="vloeistof" /></div>
-            <div><label className={lCls}>Molaire volume V<sub>m</sub></label><input value={Vm} onChange={(e) => { setVm(e.target.value); onParam({ Vm: e.target.value }); }} className={iCls} inputMode="decimal" /></div>
-          </div>
-        </section>
+      <div className="mb-2 flex items-baseline justify-between gap-2">
+        <div className="flex items-center gap-1.5">
+          <span
+            className={`inline-block h-2.5 w-2.5 rounded-full ${skin.dot}`}
+            aria-hidden
+          />
+          <h3
+            className={`text-sm font-extrabold leading-none ${
+              hub ? "text-white" : "text-slate-800"
+            }`}
+          >
+            {meta.label}
+          </h3>
+        </div>
+        <span
+          className={`font-serif text-base italic leading-none ${
+            hub ? "text-blue-100" : "text-slate-400"
+          }`}
+        >
+          {meta.symbol}
+        </span>
+      </div>
 
-        {/* Rekenschema */}
-        <section className="mb-4 rounded-2xl bg-white p-5 shadow-sm ring-1 ring-slate-200">
-          <h2 className="text-lg font-bold mb-1">2. Rekenschema</h2>
-          <p className="text-sm text-slate-500 mb-3">Naar mol toe: delen. Van mol af: vermenigvuldigen. Vul één vakje in (groen) — de rest wordt berekend.</p>
-          <div className="overflow-x-auto">
-            <div
-              className="schema-grid min-w-[720px] gap-2 p-1"
-              style={{
-                display: "grid",
-                gridTemplateColumns: "minmax(160px,1fr) 90px minmax(180px,1.1fr) 90px minmax(160px,1fr)",
-                gridTemplateRows: "auto 70px auto 70px auto",
-                alignItems: "center",
-              }}
-            >
-              {/* Rij 1: molariteit boven mol */}
-              <div className={`${boxClass("molariteit")}`} style={{ gridColumn: 3, gridRow: 1 }}>
-                {source === "molariteit" && <span className="mb-1 inline-block rounded-full bg-white px-2 py-0.5 text-xs font-bold text-green-600">jouw gegeven</span>}
-                <h3 className="font-bold">Molairiteit</h3>
-                <p className="mb-2 text-xs text-slate-500">c in mol/L — samen met volume van de oplossing</p>
-                <input value={vals.molariteit} onChange={(e) => onField("molariteit", e.target.value)} className={iCls} inputMode="decimal" placeholder="mol/L" />
-                <label className={`${lCls} mt-2`}>Volume oplossing (mL)</label>
-                <input value={volOpl} onChange={(e) => { setVolOpl(e.target.value); onParam({ volOpl: e.target.value }); }} className={iCls} inputMode="decimal" placeholder="bijv. 250 mL" />
-              </div>
+      <div className="relative">
+        <input
+          value={value}
+          onChange={(e) => onChange(id, e.target.value)}
+          inputMode="decimal"
+          autoComplete="off"
+          spellCheck={false}
+          placeholder={PLACEHOLDER[id]}
+          aria-label={`${meta.label} in ${meta.unit}`}
+          className={`w-full rounded-xl border-2 bg-white px-3 py-2 text-lg font-bold tabular-nums text-slate-900 placeholder:font-normal placeholder:text-slate-300 focus:outline-none focus:ring-4 ${inputRing} ${
+            unit ? "pr-14" : ""
+          }`}
+        />
+        {unit && (
+          <span className="pointer-events-none absolute right-3 top-1/2 -translate-y-1/2 text-xs font-bold text-slate-400">
+            {unit}
+          </span>
+        )}
+      </div>
 
-              {/* Pijl molariteit ↔ mol */}
-              <div className="flex flex-col items-center justify-center text-center text-xs font-bold text-brand-600" style={{ gridColumn: 3, gridRow: 2 }}>
-                <div>× V &nbsp;:&nbsp; : V</div>
-                <div className="text-2xl leading-none">↕</div>
-                <div>V in liter</div>
-              </div>
+      <div className="mt-1.5 min-h-[1.15rem] text-[11px] leading-tight">
+        {blocked ? (
+          <button
+            onClick={() => focusParam(blocked.param)}
+            className="font-semibold text-slate-500 underline decoration-dotted underline-offset-2 hover:text-blue-600"
+          >
+            + {blocked.text}
+          </button>
+        ) : computed && pretty ? (
+          <span className={hub ? "font-semibold text-blue-100" : "text-slate-500"}>
+            = {pretty}
+          </span>
+        ) : (
+          <span className={hub ? "text-blue-200" : "text-slate-400"}>{meta.hint}</span>
+        )}
+      </div>
+    </div>
+  );
+}
 
-              {/* Rij 3: massa — mol — deeltjes */}
-              <div className={boxClass("gram")} style={{ gridColumn: 1, gridRow: 3 }}>
-                {source === "gram" && <span className="mb-1 inline-block rounded-full bg-white px-2 py-0.5 text-xs font-bold text-green-600">jouw gegeven</span>}
-                <h3 className="font-bold">Massa</h3>
-                <p className="mb-2 text-xs text-slate-500">m in gram</p>
-                <input value={vals.gram} onChange={(e) => onField("gram", e.target.value)} className={iCls} inputMode="decimal" placeholder="g" />
-              </div>
-              <div className="flex flex-col items-center justify-center text-center text-xs font-bold text-brand-600" style={{ gridColumn: 2, gridRow: 3 }}>
-                <div>: M &nbsp;↔&nbsp; × M</div>
-                <div className="text-2xl leading-none">↔</div>
-              </div>
-              <div className={boxMol} style={{ gridColumn: 3, gridRow: 3 }}>
-                {source === "mol" && <span className="mb-1 inline-block rounded-full bg-white px-2 py-0.5 text-xs font-bold text-green-600">jouw gegeven</span>}
-                <h3 className="font-bold">Aantal mol</h3>
-                <p className="mb-2 text-xs text-blue-100">n — het knooppunt</p>
-                <input value={vals.mol} onChange={(e) => onField("mol", e.target.value)} className={`${iCls} font-bold`} inputMode="decimal" placeholder="mol" />
-              </div>
-              <div className="flex flex-col items-center justify-center text-center text-xs font-bold text-brand-600" style={{ gridColumn: 4, gridRow: 3 }}>
-                <div>× N<sub>A</sub> &nbsp;↔&nbsp; : N<sub>A</sub></div>
-                <div className="text-2xl leading-none">↔</div>
-              </div>
-              <div className={boxClass("deeltjes")} style={{ gridColumn: 5, gridRow: 3 }}>
-                {source === "deeltjes" && <span className="mb-1 inline-block rounded-full bg-white px-2 py-0.5 text-xs font-bold text-green-600">jouw gegeven</span>}
-                <h3 className="font-bold">Aantal deeltjes</h3>
-                <p className="mb-2 text-xs text-slate-500">N (atomen, moleculen, ionen)</p>
-                <input value={vals.deeltjes} onChange={(e) => onField("deeltjes", e.target.value)} className={iCls} inputMode="decimal" placeholder="bijv. 6,022e23" />
-              </div>
+function StepRow({ step, index }: { step: Step; index: number }) {
+  const tone =
+    step.phase === "naar"
+      ? { pill: "bg-blue-600 text-white", label: "naar mol" }
+      : step.phase === "vanuit"
+      ? { pill: "bg-slate-800 text-white", label: "vanuit mol" }
+      : { pill: "bg-rose-500 text-white", label: "zijstap" };
 
-              {/* Pijlen naar beneden */}
-              <div className="flex flex-col items-center justify-center text-center text-xs font-bold text-brand-600" style={{ gridColumn: 1, gridRow: 4 }}>
-                <div>: ρ &nbsp;↕&nbsp; × ρ</div>
-                <div className="text-2xl leading-none">↕</div>
-              </div>
-              <div className="flex flex-col items-center justify-center text-center text-xs font-bold text-brand-600" style={{ gridColumn: 3, gridRow: 4 }}>
-                <div>× V<sub>m</sub> &nbsp;↕&nbsp; : V<sub>m</sub></div>
-                <div className="text-2xl leading-none">↕</div>
-              </div>
+  return (
+    <li className="relative pl-10">
+      <span className="absolute left-0 top-0.5 flex h-7 w-7 items-center justify-center rounded-full bg-white text-sm font-black text-slate-700 ring-2 ring-slate-200">
+        {index}
+      </span>
+      <div className="rounded-xl border border-slate-200 bg-white p-3">
+        <div className="mb-2 flex flex-wrap items-center gap-2">
+          <span
+            className={`rounded-full px-2 py-0.5 text-[10px] font-bold uppercase tracking-wider ${tone.pill}`}
+          >
+            {tone.label}
+          </span>
+          <span className="text-sm font-bold text-slate-800">{step.title}</span>
+        </div>
+        <div className="flex flex-wrap items-center gap-x-3 gap-y-1 font-mono text-sm">
+          <span className="rounded-md bg-slate-100 px-2 py-1 font-semibold text-slate-700">
+            {step.formula}
+          </span>
+          {step.filled && (
+            <>
+              <span className="text-slate-300">→</span>
+              <span className="text-slate-600">{step.filled}</span>
+            </>
+          )}
+          <span className="text-slate-300">=</span>
+          <span className="rounded-md bg-blue-50 px-2 py-1 font-bold text-blue-700">
+            {step.answer}
+          </span>
+        </div>
+        <p className="mt-1.5 text-xs text-slate-500">{step.note}</p>
+      </div>
+    </li>
+  );
+}
 
-              {/* Rij 5: volume stof onder massa, gasvolume onder mol */}
-              <div className={boxClass("volume")} style={{ gridColumn: 1, gridRow: 5 }}>
-                {source === "volume" && <span className="mb-1 inline-block rounded-full bg-white px-2 py-0.5 text-xs font-bold text-green-600">jouw gegeven</span>}
-                <h3 className="font-bold">Volume stof</h3>
-                <p className="mb-2 text-xs text-slate-500">cm³ of mL (via dichtheid)</p>
-                <input value={vals.volume} onChange={(e) => onField("volume", e.target.value)} className={iCls} inputMode="decimal" placeholder="cm³" />
+interface ParamProps {
+  id: ParamId;
+  value: string;
+  onChange: (v: string) => void;
+  placeholder: string;
+  uitleg: string;
+  status: "uit" | "gebruikt" | "optioneel" | "ontbreekt";
+  children?: React.ReactNode;
+}
+
+function ParamCard({
+  id,
+  value,
+  onChange,
+  placeholder,
+  uitleg,
+  status,
+  children,
+}: ParamProps) {
+  const meta = PARAM[id];
+  return (
+    <div
+      className={`rounded-xl border-2 p-3 transition ${
+        status === "ontbreekt"
+          ? "border-amber-300 bg-amber-50"
+          : status === "gebruikt"
+          ? "border-blue-200 bg-blue-50/50"
+          : "border-slate-200 bg-white"
+      }`}
+    >
+      <div className="mb-1 flex items-center justify-between gap-2">
+        <label
+          htmlFor={`param-${id}`}
+          className="text-sm font-bold tracking-tight text-slate-700"
+        >
+          {meta.label}
+        </label>
+        {status === "ontbreekt" ? (
+          <span className="rounded-full bg-amber-400 px-1.5 py-0.5 text-[9px] font-black uppercase text-white">
+            nodig
+          </span>
+        ) : status === "gebruikt" ? (
+          <span className="rounded-full bg-blue-100 px-1.5 py-0.5 text-[9px] font-black uppercase text-blue-700">
+            in gebruik
+          </span>
+        ) : status === "optioneel" ? (
+          <span className="rounded-full bg-slate-100 px-1.5 py-0.5 text-[9px] font-black uppercase text-slate-500">
+            optioneel
+          </span>
+        ) : null}
+      </div>
+      <div className="relative">
+        <input
+          id={`param-${id}`}
+          value={value}
+          onChange={(e) => onChange(e.target.value)}
+          inputMode="decimal"
+          autoComplete="off"
+          placeholder={placeholder}
+          className="w-full rounded-lg border-2 border-slate-200 bg-white px-3 py-1.5 pr-16 text-base font-semibold tabular-nums focus:border-blue-500 focus:outline-none focus:ring-4 focus:ring-blue-500/20"
+        />
+        <span className="pointer-events-none absolute right-2.5 top-1/2 -translate-y-1/2 text-[10px] font-bold text-slate-400">
+          {meta.unit}
+        </span>
+      </div>
+      {children}
+      <p className="mt-1.5 text-[11px] leading-tight text-slate-500">{uitleg}</p>
+    </div>
+  );
+}
+
+/* ------------------------------------------------------------------ */
+/* Pagina                                                              */
+/* ------------------------------------------------------------------ */
+
+export default function RekenschemaPage() {
+  const [formule, setFormule] = useState("");
+  const [mText, setMText] = useState("");
+  const [rhoText, setRhoText] = useState("");
+  const [vmText, setVmText] = useState("22,4");
+  const [voplText, setVoplText] = useState("");
+  const [source, setSource] = useState<FId | null>(null);
+  const [raw, setRaw] = useState("");
+  const [sig, setSig] = useState(4);
+
+  /* molaire massa automatisch uit de formule */
+  const auto = useMemo(() => {
+    const f = formule.trim();
+    if (!f) return { mass: NaN, fout: null as string | null };
+    try {
+      return { mass: calculate(f).mass, fout: null };
+    } catch (e) {
+      return { mass: NaN, fout: e instanceof Error ? e.message : "Onbekende formule." };
+    }
+  }, [formule]);
+
+  const sol = useMemo(
+    () =>
+      solve({
+        source,
+        raw,
+        M: parseNL(mText),
+        rho: parseNL(rhoText),
+        Vm: parseNL(vmText),
+        Vopl: parseNL(voplText) / 1000,
+        sig,
+      }),
+    [source, raw, mText, rhoText, vmText, voplText, sig]
+  );
+
+  const actieveChips = useMemo(() => {
+    const s = new Set<string>();
+    for (const st of sol.steps) {
+      const k = STEP_TO_CHIP[`${st.from}>${st.to}`];
+      if (k) s.add(k);
+    }
+    return s;
+  }, [sol.steps]);
+
+  const actieveEdges = useMemo(() => {
+    const s = new Set<FId>();
+    actieveChips.forEach((k) => s.add(k.split(":")[0] as FId));
+    return s;
+  }, [actieveChips]);
+
+  /** Wat het rekenen nu écht tegenhoudt, versus takken die je erbij kúnt pakken. */
+  const paramStatus = useMemo(() => {
+    const s: Record<ParamId, "uit" | "gebruikt" | "optioneel" | "ontbreekt"> = {
+      M: "uit",
+      rho: "uit",
+      Vm: "uit",
+      Vopl: "uit",
+    };
+    Object.values(sol.blocked).forEach((b) => {
+      if (b) s[b.param] = "optioneel";
+    });
+    sol.used.forEach((p) => (s[p] = "gebruikt"));
+    if (sol.warn) s[sol.warn.param] = "ontbreekt";
+    return s;
+  }, [sol]);
+
+  function veldWaarde(id: FId): string {
+    if (source === id) return raw;
+    return sol.values[id] ?? "";
+  }
+
+  function onVeld(id: FId, v: string) {
+    if (!v.trim()) {
+      setSource(null);
+      setRaw("");
+      return;
+    }
+    setSource(id);
+    setRaw(v);
+  }
+
+  function onFormule(v: string) {
+    setFormule(v);
+    try {
+      const r = calculate(v);
+      setMText(toPlain(r.mass));
+    } catch {
+      /* laat M staan zoals hij is */
+    }
+  }
+
+  function kiesStof(p: { f: string; rho?: string }) {
+    onFormule(p.f);
+    setRhoText(p.rho ?? "");
+  }
+
+  function laadOpgave(o: Opgave) {
+    onFormule(o.formule);
+    setRhoText(o.rho);
+    setVoplText(o.vopl);
+    setVmText("22,4");
+    setSource(o.source);
+    setRaw(o.raw);
+    window.setTimeout(
+      () =>
+        document
+          .getElementById("schema")
+          ?.scrollIntoView({ behavior: "smooth", block: "start" }),
+      50
+    );
+  }
+
+  function wisAlles() {
+    setFormule("");
+    setMText("");
+    setRhoText("");
+    setVmText("22,4");
+    setVoplText("");
+    setSource(null);
+    setRaw("");
+  }
+
+  const nodeProps = (id: FId) => ({
+    id,
+    value: veldWaarde(id),
+    pretty: sol.pretty[id],
+    isSource: source === id,
+    computed: source !== id && sol.values[id] !== undefined,
+    blocked: sol.blocked[id],
+    onChange: onVeld,
+  });
+
+  return (
+    <main className="min-h-screen bg-slate-50 pb-16">
+      {/* ---------------- kop ---------------- */}
+      <div className="relative overflow-hidden bg-gradient-to-br from-slate-900 via-blue-900 to-indigo-900 text-white">
+        <div
+          className="pointer-events-none absolute inset-0 opacity-25"
+          style={{
+            backgroundImage:
+              "radial-gradient(circle at 1px 1px, rgba(255,255,255,.6) 1px, transparent 0)",
+            backgroundSize: "28px 28px",
+          }}
+          aria-hidden
+        />
+        <div className="relative mx-auto max-w-6xl px-4 py-8 sm:px-6 lg:px-8">
+          <nav className="mb-5 flex flex-wrap items-center gap-x-4 gap-y-1 text-sm">
+            <Link href="/" className="text-blue-200 hover:text-white">
+              ← Vergelijkingen
+            </Link>
+            <Link href="/bereken" className="text-blue-200 hover:text-white">
+              Molecuulmassa
+            </Link>
+            <span className="font-semibold text-white">Rekenschema</span>
+          </nav>
+
+          <span className="inline-block rounded-full bg-white/10 px-3 py-1 text-xs font-bold uppercase tracking-widest text-blue-200 ring-1 ring-white/20">
+            chemisch rekenen · 4 havo / vwo
+          </span>
+          <h1 className="mt-3 text-3xl font-black leading-tight sm:text-4xl lg:text-5xl">
+            Alles loopt via{" "}
+            <span className="bg-gradient-to-r from-sky-300 to-emerald-300 bg-clip-text text-transparent">
+              mol
+            </span>
+          </h1>
+          <p className="mt-3 max-w-2xl text-blue-100">
+            Vul één vakje in dat je uit de opgave kent. De rest reken ik uit —
+            en je ziet precies welke route over het schema is gelopen.
+          </p>
+
+          <div className="mt-6 grid gap-3 sm:grid-cols-3">
+            <div className="rounded-xl bg-white/10 p-3 ring-1 ring-white/15">
+              <div className="text-xs font-bold uppercase tracking-wider text-blue-200">
+                de gouden regel
               </div>
-              <div className={boxClass("gasvolume")} style={{ gridColumn: 3, gridRow: 5 }}>
-                {source === "gasvolume" && <span className="mb-1 inline-block rounded-full bg-white px-2 py-0.5 text-xs font-bold text-green-600">jouw gegeven</span>}
-                <h3 className="font-bold">Volume gas</h3>
-                <p className="mb-2 text-xs text-slate-500">dm³ bij STP (0 °C, 1 atm)</p>
-                <input value={vals.gasvolume} onChange={(e) => onField("gasvolume", e.target.value)} className={iCls} inputMode="decimal" placeholder="dm³" />
+              <p className="mt-1 text-sm">
+                <strong>Naar mol toe → delen.</strong> Van mol af →
+                vermenigvuldigen.
+              </p>
+            </div>
+            <div className="rounded-xl bg-white/10 p-3 ring-1 ring-white/15">
+              <div className="text-xs font-bold uppercase tracking-wider text-blue-200">
+                de uitzondering
               </div>
+              <p className="mt-1 text-sm">
+                Bij molariteit is het net andersom: <em>n = c × V</em>, want V
+                staat onder de streep in c.
+              </p>
+            </div>
+            <div className="rounded-xl bg-white/10 p-3 ring-1 ring-white/15">
+              <div className="text-xs font-bold uppercase tracking-wider text-blue-200">
+                let op
+              </div>
+              <p className="mt-1 text-sm">
+                Volume vloeistof hangt aan de <strong>massa</strong>, niet
+                rechtstreeks aan mol.
+              </p>
             </div>
           </div>
-          {warn && <div className="mt-3 rounded-lg bg-red-50 px-3 py-2 text-sm text-red-700">{warn}</div>}
-          <div className="mt-4 flex flex-wrap gap-2 items-center">
-            <button onClick={clearAll} className="rounded-lg bg-red-100 px-4 py-2 text-sm font-bold text-red-600 hover:bg-red-200">Wis alles</button>
-            <span className="text-sm text-slate-400">of probeer:</span>
-            <button onClick={() => loadEx("water")} className="rounded-lg bg-brand-600 px-3 py-2 text-sm font-bold text-white hover:bg-brand-700">36 g water</button>
-            <button onClick={() => loadEx("zuurstof")} className="rounded-lg bg-blue-100 px-3 py-2 text-sm font-bold text-brand-600 hover:bg-blue-200">11,2 dm³ O₂</button>
-            <button onClick={() => loadEx("zoutzuur")} className="rounded-lg bg-blue-100 px-3 py-2 text-sm font-bold text-brand-600 hover:bg-blue-200">250 mL 0,10 M HCl</button>
-            <button onClick={() => loadEx("deeltjes")} className="rounded-lg bg-blue-100 px-3 py-2 text-sm font-bold text-brand-600 hover:bg-blue-200">6,022 × 10²³ deeltjes</button>
+        </div>
+      </div>
+
+      <div className="mx-auto max-w-6xl px-4 sm:px-6 lg:px-8">
+        {/* ---------------- stap 1 ---------------- */}
+        <section className="-mt-6 rounded-2xl bg-white p-5 shadow-lg ring-1 ring-slate-200">
+          <div className="mb-4 flex items-center gap-3">
+            <span className="flex h-8 w-8 items-center justify-center rounded-full bg-blue-600 text-sm font-black text-white">
+              1
+            </span>
+            <div>
+              <h2 className="text-lg font-black text-slate-900">
+                Welke stof heb je?
+              </h2>
+              <p className="text-sm text-slate-500">
+                Typ de formule — de molaire massa reken ik er zelf bij.
+              </p>
+            </div>
+          </div>
+
+          <div className="grid gap-4 lg:grid-cols-[minmax(0,1fr)_minmax(0,1.6fr)]">
+            <div>
+              <div className="relative">
+                <input
+                  value={formule}
+                  onChange={(e) => onFormule(e.target.value)}
+                  placeholder="bijv. H2O of Ca(OH)2"
+                  spellCheck={false}
+                  autoComplete="off"
+                  className="w-full rounded-xl border-2 border-slate-200 bg-white px-4 py-3 font-mono text-xl font-bold focus:border-blue-500 focus:outline-none focus:ring-4 focus:ring-blue-500/20"
+                />
+              </div>
+
+              {formule.trim() && (
+                <div
+                  className={`mt-2 rounded-xl px-3 py-2 text-sm ${
+                    auto.fout
+                      ? "bg-red-50 text-red-700"
+                      : "bg-emerald-50 text-emerald-800"
+                  }`}
+                >
+                  {auto.fout ? (
+                    auto.fout
+                  ) : (
+                    <>
+                      <span className="font-serif text-base">
+                        <FormulaView formula={formule.trim()} />
+                      </span>{" "}
+                      → M ={" "}
+                      <strong className="tabular-nums">
+                        {toPlain(auto.mass)} g/mol
+                      </strong>
+                    </>
+                  )}
+                </div>
+              )}
+
+              <div className="mt-3 flex flex-wrap gap-1.5">
+                {PRESETS.map((p) => (
+                  <button
+                    key={p.f}
+                    onClick={() => kiesStof(p)}
+                    title={p.naam}
+                    className={`rounded-lg px-2.5 py-1 font-mono text-sm font-semibold transition ${
+                      formule.trim() === p.f
+                        ? "bg-blue-600 text-white"
+                        : "bg-slate-100 text-slate-700 hover:bg-slate-200"
+                    }`}
+                  >
+                    <FormulaView formula={p.f} />
+                  </button>
+                ))}
+              </div>
+            </div>
+
+            <div className="grid gap-3 sm:grid-cols-2">
+              <ParamCard
+                id="M"
+                value={mText}
+                onChange={setMText}
+                placeholder="18,02"
+                uitleg="Nodig voor elke stap tussen gram en mol."
+                status={paramStatus.M}
+              />
+              <ParamCard
+                id="rho"
+                value={rhoText}
+                onChange={setRhoText}
+                placeholder="1,00"
+                uitleg="Alleen nodig als je met een volume vloeistof werkt."
+                status={paramStatus.rho}
+              />
+              <ParamCard
+                id="Vm"
+                value={vmText}
+                onChange={setVmText}
+                placeholder="22,4"
+                uitleg="Alleen voor gassen. Hangt af van temperatuur en druk."
+                status={paramStatus.Vm}
+              >
+                <div className="mt-1.5 flex gap-1">
+                  {[
+                    { v: "22,4", l: "0 °C" },
+                    { v: "24,5", l: "25 °C" },
+                  ].map((o) => (
+                    <button
+                      key={o.v}
+                      onClick={() => setVmText(o.v)}
+                      className={`rounded-md px-2 py-0.5 text-[11px] font-bold transition ${
+                        vmText === o.v
+                          ? "bg-sky-500 text-white"
+                          : "bg-slate-100 text-slate-600 hover:bg-slate-200"
+                      }`}
+                    >
+                      {o.v} · {o.l}
+                    </button>
+                  ))}
+                </div>
+              </ParamCard>
+              <ParamCard
+                id="Vopl"
+                value={voplText}
+                onChange={setVoplText}
+                placeholder="250"
+                uitleg="Het volume waarin de stof is opgelost. Reken ik om naar liter."
+                status={paramStatus.Vopl}
+              >
+                {parseNL(voplText) > 0 && (
+                  <p className="mt-1 text-[11px] font-semibold text-emerald-700">
+                    = {toPlain(parseNL(voplText) / 1000)} L
+                  </p>
+                )}
+              </ParamCard>
+            </div>
           </div>
         </section>
 
-        {/* Rekenroute */}
-        {steps.length > 0 && (
-          <section className="mb-4 rounded-2xl bg-amber-50 p-5 ring-1 ring-amber-200">
-            <h2 className="text-base font-bold text-amber-700 mb-2">3. Rekenroute</h2>
-            <ol className="list-decimal pl-5 space-y-1">
-              {steps.map((s, i) => <li key={i} className="text-sm text-slate-700" dangerouslySetInnerHTML={{ __html: s }} />)}
-            </ol>
-          </section>
-        )}
+        {/* ---------------- stap 2: het schema ---------------- */}
+        <section
+          id="schema"
+          className="mt-5 scroll-mt-4 rounded-2xl bg-white p-5 shadow-sm ring-1 ring-slate-200"
+        >
+          <div className="mb-4 flex flex-wrap items-start justify-between gap-3">
+            <div className="flex items-center gap-3">
+              <span className="flex h-8 w-8 items-center justify-center rounded-full bg-blue-600 text-sm font-black text-white">
+                2
+              </span>
+              <div>
+                <h2 className="text-lg font-black text-slate-900">
+                  Vul je gegeven in
+                </h2>
+                <p className="text-sm text-slate-500">
+                  Eén vakje is genoeg. Groen = van jou, gekleurd = door mij
+                  berekend.
+                </p>
+              </div>
+            </div>
+            <div className="flex items-center gap-2">
+              <span className="text-xs font-bold uppercase tracking-wide text-slate-500">
+                afronden op
+              </span>
+              <div className="flex overflow-hidden rounded-lg ring-1 ring-slate-200">
+                {[2, 3, 4, 5].map((s) => (
+                  <button
+                    key={s}
+                    onClick={() => setSig(s)}
+                    className={`px-2.5 py-1 text-sm font-bold transition ${
+                      sig === s
+                        ? "bg-slate-800 text-white"
+                        : "bg-white text-slate-600 hover:bg-slate-100"
+                    }`}
+                  >
+                    {s}
+                  </button>
+                ))}
+              </div>
+              <span className="text-xs text-slate-500">sig. cijfers</span>
+            </div>
+          </div>
 
-        {/* Formules */}
-        <section className="mb-4 rounded-2xl bg-white p-5 shadow-sm ring-1 ring-slate-200">
-          <h2 className="text-lg font-bold mb-3">Formules</h2>
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-2">
-            {[
-              ["n = m / M", "mol = gram ÷ molaire massa"],
-              ["m = n × M", "gram = mol × molaire massa"],
-              ["n = N / N_A", "mol = deeltjes ÷ Avogadro"],
-              ["N = n × N_A", "deeltjes = mol × Avogadro"],
-              ["c = n / V", "molariteit = mol ÷ liter"],
-              ["n = c × V", "mol = molariteit × liter"],
-              ["V_gas = n × V_m", "dm³ gas = mol × 22,4"],
-              ["V = m / ρ", "cm³ = gram ÷ dichtheid"],
-              ["ρ = m / V", "dichtheid = gram ÷ cm³"],
-            ].map(([f, d]) => (
-              <div key={f} className="rounded-lg border-l-4 border-brand-500 bg-slate-50 p-3"><strong className="text-brand-600">{f}</strong><br /><span className="text-sm text-slate-500">{d}</span></div>
+          {sol.warn && (
+            <div className="mb-4 flex flex-wrap items-center gap-3 rounded-xl border-2 border-amber-300 bg-amber-50 px-4 py-3">
+              <span className="text-lg" aria-hidden>
+                ⚠️
+              </span>
+              <p className="flex-1 text-sm font-semibold text-amber-900">
+                {sol.warn.text}
+              </p>
+              <button
+                onClick={() => sol.warn && focusParam(sol.warn.param)}
+                className="rounded-lg bg-amber-500 px-3 py-1.5 text-sm font-bold text-white hover:bg-amber-600"
+              >
+                Ga erheen
+              </button>
+            </div>
+          )}
+
+          {/* --- diagram (grote schermen) --- */}
+          <div
+            className="relative mx-auto hidden w-full max-w-[920px] rounded-2xl bg-slate-50/70 ring-1 ring-slate-100 lg:block"
+            style={{ aspectRatio: "11 / 9" }}
+          >
+            <div
+              className="pointer-events-none absolute left-1/2 top-[46%] h-72 w-72 -translate-x-1/2 -translate-y-1/2 rounded-full bg-blue-400/20 blur-3xl"
+              aria-hidden
+            />
+
+            <svg
+              className="absolute inset-0 h-full w-full"
+              viewBox="0 0 100 100"
+              preserveAspectRatio="none"
+              aria-hidden
+            >
+              {EDGES.map((e) => {
+                const a = POS[e.a];
+                const b = POS[e.b];
+                const actief = actieveEdges.has(e.key);
+                return (
+                  <g key={e.key}>
+                    <line
+                      x1={a.x}
+                      y1={a.y}
+                      x2={b.x}
+                      y2={b.y}
+                      stroke="#e2e8f0"
+                      strokeWidth={4}
+                      strokeLinecap="round"
+                      vectorEffect="non-scaling-stroke"
+                    />
+                    {actief && (
+                      <line
+                        x1={a.x}
+                        y1={a.y}
+                        x2={b.x}
+                        y2={b.y}
+                        stroke={SKIN[e.key].line}
+                        strokeWidth={4}
+                        strokeLinecap="round"
+                        vectorEffect="non-scaling-stroke"
+                        className="edge-flow"
+                      />
+                    )}
+                  </g>
+                );
+              })}
+            </svg>
+
+            {CHIPS.map((c) => {
+              const actief = actieveChips.has(`${c.key}:${c.dir}`);
+              return (
+                <div
+                  key={`${c.key}-${c.dir}`}
+                  className={`absolute -translate-x-1/2 -translate-y-1/2 whitespace-nowrap rounded-full border px-2 py-0.5 text-xs font-black tabular-nums transition ${
+                    actief
+                      ? "border-transparent text-white shadow-md"
+                      : "border-slate-200 bg-white text-slate-400"
+                  }`}
+                  style={{
+                    left: `${c.x}%`,
+                    top: `${c.y}%`,
+                    backgroundColor: actief ? SKIN[c.key].line : undefined,
+                  }}
+                >
+                  {c.text}
+                </div>
+              );
+            })}
+
+            {(Object.keys(POS) as FId[]).map((id) => (
+              <div
+                key={id}
+                className="absolute -translate-x-1/2 -translate-y-1/2"
+                style={{
+                  left: `${POS[id].x}%`,
+                  top: `${POS[id].y}%`,
+                  width: id === "mol" ? 232 : 196,
+                }}
+              >
+                <NodeCard {...nodeProps(id)} hub={id === "mol"} />
+              </div>
+            ))}
+          </div>
+
+          {/* --- gestapeld (kleine schermen) --- */}
+          <div className="lg:hidden">
+            <NodeCard {...nodeProps("mol")} hub />
+
+            <p className="mb-2 mt-5 text-xs font-bold uppercase tracking-wider text-slate-400">
+              Direct verbonden met mol
+            </p>
+            <div className="grid gap-3 sm:grid-cols-2">
+              {(["gram", "deeltjes", "gasvolume", "molariteit"] as FId[]).map(
+                (id) => (
+                  <div key={id}>
+                    <div className="mb-1 flex items-center justify-center gap-2 text-[11px] font-black">
+                      <span
+                        className={`rounded-full px-2 py-0.5 ${
+                          actieveChips.has(`${id}:naar`)
+                            ? "text-white"
+                            : "bg-slate-100 text-slate-400"
+                        }`}
+                        style={{
+                          backgroundColor: actieveChips.has(`${id}:naar`)
+                            ? SKIN[id].line
+                            : undefined,
+                        }}
+                      >
+                        {id === "gram"
+                          ? "÷ M"
+                          : id === "deeltjes"
+                          ? "÷ Nₐ"
+                          : id === "gasvolume"
+                          ? "÷ Vₘ"
+                          : "× V"}{" "}
+                        ↓ naar mol
+                      </span>
+                      <span
+                        className={`rounded-full px-2 py-0.5 ${
+                          actieveChips.has(`${id}:vanuit`)
+                            ? "text-white"
+                            : "bg-slate-100 text-slate-400"
+                        }`}
+                        style={{
+                          backgroundColor: actieveChips.has(`${id}:vanuit`)
+                            ? SKIN[id].line
+                            : undefined,
+                        }}
+                      >
+                        ↑{" "}
+                        {id === "gram"
+                          ? "× M"
+                          : id === "deeltjes"
+                          ? "× Nₐ"
+                          : id === "gasvolume"
+                          ? "× Vₘ"
+                          : "÷ V"}
+                      </span>
+                    </div>
+                    <NodeCard {...nodeProps(id)} />
+                  </div>
+                )
+              )}
+            </div>
+
+            <p className="mb-2 mt-5 text-xs font-bold uppercase tracking-wider text-slate-400">
+              Loopt via de massa
+            </p>
+            <NodeCard {...nodeProps("volume")} />
+          </div>
+
+          <div className="mt-5 flex flex-wrap items-center gap-2 border-t border-slate-100 pt-4">
+            <button
+              onClick={wisAlles}
+              className="rounded-lg bg-slate-100 px-3 py-2 text-sm font-bold text-slate-700 hover:bg-slate-200"
+            >
+              Wis alles
+            </button>
+            <span className="text-sm text-slate-400">of pak een opgave:</span>
+            {OPGAVEN.map((o) => (
+              <button
+                key={o.titel}
+                onClick={() => laadOpgave(o)}
+                title={o.vraag}
+                className="rounded-lg border border-blue-200 bg-blue-50 px-3 py-2 text-sm font-bold text-blue-700 transition hover:bg-blue-100"
+              >
+                {o.titel}
+              </button>
             ))}
           </div>
         </section>
 
-        {/* Dichtheid-calculator */}
-        <section className="mb-4 rounded-2xl bg-white p-5 shadow-sm ring-1 ring-slate-200">
-          <h2 className="text-lg font-bold mb-2">Dichtheid ρ berekenen</h2>
-          <div className="grid grid-cols-2 gap-3">
-            <div><label className={lCls}>Massa m (g)</label><input value={rhoMass} onChange={(e) => { setRhoMass(e.target.value); setTimeout(updRho, 0); }} className={iCls} inputMode="decimal" placeholder="bijv. 39,5" /></div>
-            <div><label className={lCls}>Volume V (cm³)</label><input value={rhoVol} onChange={(e) => { setRhoVol(e.target.value); setTimeout(updRho, 0); }} className={iCls} inputMode="decimal" placeholder="bijv. 50" /></div>
+        {/* ---------------- stap 3: de route ---------------- */}
+        <section className="mt-5 rounded-2xl bg-white p-5 shadow-sm ring-1 ring-slate-200">
+          <div className="mb-4 flex items-center gap-3">
+            <span className="flex h-8 w-8 items-center justify-center rounded-full bg-blue-600 text-sm font-black text-white">
+              3
+            </span>
+            <div>
+              <h2 className="text-lg font-black text-slate-900">
+                Zo schrijf je het op
+              </h2>
+              <p className="text-sm text-slate-500">
+                Formule, ingevulde getallen, antwoord — precies zoals je docent
+                het wil zien.
+              </p>
+            </div>
           </div>
-          {rhoRes && <div className="mt-3 rounded-lg bg-amber-50 p-3 text-sm" dangerouslySetInnerHTML={{ __html: rhoRes }} />}
+
+          {sol.steps.length === 0 ? (
+            <div className="rounded-xl border-2 border-dashed border-slate-200 px-4 py-10 text-center">
+              <p className="text-3xl" aria-hidden>
+                🧪
+              </p>
+              <p className="mt-2 font-bold text-slate-600">
+                Nog niets ingevuld.
+              </p>
+              <p className="text-sm text-slate-500">
+                Vul hierboven een vakje in, dan verschijnt hier je volledige
+                uitwerking.
+              </p>
+            </div>
+          ) : (
+            <ol className="space-y-3">
+              {sol.steps.map((s, i) => (
+                <StepRow key={s.id} step={s} index={i + 1} />
+              ))}
+            </ol>
+          )}
         </section>
 
-        {/* Vm-calculator */}
-        <section className="mb-4 rounded-2xl bg-white p-5 shadow-sm ring-1 ring-slate-200">
-          <h2 className="text-lg font-bold mb-2">Reken met V<sub>m</sub> = 22,4</h2>
-          <div className="grid grid-cols-2 gap-3">
-            <div><label className={lCls}>Aantal mol n</label><input value={vmMol} onChange={(e) => { setVmMol(e.target.value); setTimeout(() => updVm("mol"), 0); }} className={iCls} inputMode="decimal" placeholder="bijv. 1,00" /></div>
-            <div><label className={lCls}>Volume gas V (dm³)</label><input value={vmVol} onChange={(e) => { setVmVol(e.target.value); setTimeout(() => updVm("vol"), 0); }} className={iCls} inputMode="decimal" placeholder="bijv. 22,4" /></div>
+        {/* ---------------- spiekbrief ---------------- */}
+        <section className="mt-5 rounded-2xl bg-white p-5 shadow-sm ring-1 ring-slate-200">
+          <h2 className="text-lg font-black text-slate-900">Spiekbrief</h2>
+          <p className="mb-4 text-sm text-slate-500">
+            De kleuren horen bij de takken van het schema hierboven.
+          </p>
+          <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
+            {(
+              [
+                ["gram", "n = m ÷ M", "mol = gram ÷ molaire massa"],
+                ["gram", "m = n × M", "gram = mol × molaire massa"],
+                ["deeltjes", "n = N ÷ Nₐ", `deeltjes ÷ ${NA_PRETTY}`],
+                ["deeltjes", "N = n × Nₐ", `mol × ${NA_PRETTY}`],
+                ["gasvolume", "n = V ÷ Vₘ", "dm³ gas ÷ 22,4"],
+                ["gasvolume", "V = n × Vₘ", "mol × 22,4 = dm³ gas"],
+                ["molariteit", "n = c × V", "mol/L × liter oplossing"],
+                ["molariteit", "c = n ÷ V", "mol ÷ liter oplossing"],
+                ["volume", "m = V × ρ", "mL × dichtheid = gram"],
+                ["volume", "V = m ÷ ρ", "gram ÷ dichtheid = mL"],
+              ] as [FId, string, string][]
+            ).map(([id, f, uitleg]) => (
+              <div
+                key={f}
+                className={`rounded-xl border-l-4 p-3 ${SKIN[id].soft}`}
+                style={{ borderLeftColor: SKIN[id].line }}
+              >
+                <div className="font-mono text-base font-black text-slate-800">
+                  {f}
+                </div>
+                <div className="text-xs text-slate-600">{uitleg}</div>
+              </div>
+            ))}
           </div>
-          {vmRes && <div className="mt-3 rounded-lg bg-amber-50 p-3 text-sm" dangerouslySetInnerHTML={{ __html: vmRes }} />}
+
+          <div className="mt-4 grid gap-3 sm:grid-cols-3">
+            <div className="rounded-xl bg-slate-900 p-3 text-white">
+              <div className="text-[11px] font-bold uppercase tracking-wider text-slate-400">
+                Avogadro
+              </div>
+              <div className="font-mono text-lg font-black">
+                Nₐ = {NA_PRETTY}
+              </div>
+              <div className="text-xs text-slate-400">deeltjes per mol</div>
+            </div>
+            <div className="rounded-xl bg-slate-900 p-3 text-white">
+              <div className="text-[11px] font-bold uppercase tracking-wider text-slate-400">
+                Molair volume
+              </div>
+              <div className="font-mono text-lg font-black">Vₘ = 22,4</div>
+              <div className="text-xs text-slate-400">
+                dm³/mol bij 0 °C en p⁰
+              </div>
+            </div>
+            <div className="rounded-xl bg-slate-900 p-3 text-white">
+              <div className="text-[11px] font-bold uppercase tracking-wider text-slate-400">
+                Handig
+              </div>
+              <div className="font-mono text-lg font-black">
+                1 mL = 1 cm³
+              </div>
+              <div className="text-xs text-slate-400">
+                en 1 dm³ = 1 L = 1000 mL
+              </div>
+            </div>
+          </div>
         </section>
       </div>
     </main>

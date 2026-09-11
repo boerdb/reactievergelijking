@@ -2,7 +2,13 @@
 // Strategie: cache-first voor statische assets, network-first voor de HTML,
 // met fallback naar cache wanneer er geen verbinding is.
 
-const CACHE_VERSION = "reactievergelijking-v9";
+const CACHE_VERSION = "reactievergelijking-v10";
+
+// Op localhost draait de dev-server: daar zou cache-first steeds de oude
+// bundel teruggeven, waardoor wijzigingen niet zichtbaar worden.
+const IS_DEV =
+  self.location.hostname === "localhost" ||
+  self.location.hostname === "127.0.0.1";
 const PRECACHE = [
   "/",
   "/manifest.webmanifest",
@@ -45,6 +51,9 @@ self.addEventListener("fetch", (event) => {
 
   // Bypass chrome-extensies en cross-origin verzoeken (zoals analytics).
   if (url.origin !== self.location.origin) return;
+
+  // Tijdens ontwikkelen niets onderscheppen.
+  if (IS_DEV) return;
 
   // HTML: network-first, val terug op cache.
   if (req.mode === "navigate" || req.headers.get("accept")?.includes("text/html")) {

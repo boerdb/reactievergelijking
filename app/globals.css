@@ -21,3 +21,21 @@ body {
   vertical-align: sub;
   line-height: 0;
 }
+
+/* Rekenschema: stromende lijn langs een actieve route */
+@keyframes dashflow {
+  to {
+    stroke-dashoffset: -24px;
+  }
+}
+
+.edge-flow {
+  stroke-dasharray: 6px 6px;
+  animation: dashflow 0.9s linear infinite;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .edge-flow {
+    animation: none;
+  }
+}
