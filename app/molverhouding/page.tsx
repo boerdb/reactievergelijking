@@ -1,8 +1,14 @@
 "use client";
 
 import { useMemo, useState } from "react";
-import Link from "next/link";
 import PeriodicKeyboardModal from "@/components/PeriodicKeyboardModal";
+import {
+  AppPage,
+  StepSection,
+  btnDark,
+  btnGhost,
+  inputClass,
+} from "@/components/AppShell";
 import {
   tokenizeFormula,
   equationToUnicode,
@@ -305,107 +311,58 @@ export default function MolverhoudingPage() {
   const ready = sol.steps.length > 0;
 
   return (
-    <main className="min-h-screen bg-slate-50 pb-16">
-      <div className="relative overflow-hidden bg-gradient-to-br from-slate-900 via-indigo-950 to-blue-900 text-white">
-        <div
-          className="pointer-events-none absolute inset-0 opacity-25"
-          style={{
-            backgroundImage:
-              "radial-gradient(circle at 1px 1px, rgba(255,255,255,.6) 1px, transparent 0)",
-            backgroundSize: "28px 28px",
-          }}
-          aria-hidden
-        />
-        <div className="relative mx-auto max-w-6xl px-4 py-8 sm:px-6 lg:px-8">
-          <nav className="mb-5 flex flex-wrap items-center gap-x-4 gap-y-1 text-sm">
-            <Link href="/" className="text-blue-200 hover:text-white">
-              ← Vergelijkingen
-            </Link>
-            <Link href="/bereken" className="text-blue-200 hover:text-white">
-              Molecuulmassa
-            </Link>
-            <Link href="/rekenschema" className="text-blue-200 hover:text-white">
-              Rekenschema
-            </Link>
-            <span className="font-semibold text-white">Molverhouding</span>
-          </nav>
-
-          <span className="inline-block rounded-full bg-white/10 px-3 py-1 text-xs font-bold uppercase tracking-widest text-blue-200 ring-1 ring-white/20">
-            chemisch rekenen · 4 havo / vwo
-          </span>
-          <h1 className="mt-3 text-3xl font-black leading-tight sm:text-4xl lg:text-5xl">
-            Van stof A naar stof B via{" "}
-            <span className="bg-gradient-to-r from-sky-300 to-violet-300 bg-clip-text text-transparent">
-              mol
-            </span>
-          </h1>
-          <p className="mt-3 max-w-2xl text-blue-100">
-            Vul de reactie in, geef de massa (of mol) van één stof, en kies wat
-            je zoekt. Optioneel: de massa van het mengsel — dan volgt het
-            massapercentage.
-          </p>
-
-          <div className="mt-6 grid gap-3 sm:grid-cols-3">
-            <div className="rounded-xl bg-white/10 p-3 ring-1 ring-white/15">
-              <div className="text-xs font-bold uppercase tracking-wider text-blue-200">
-                stap 1
-              </div>
-              <p className="mt-1 text-sm">
-                Gegeven → <strong>mol</strong> (delen door M).
-              </p>
-            </div>
-            <div className="rounded-xl bg-white/10 p-3 ring-1 ring-white/15">
-              <div className="text-xs font-bold uppercase tracking-wider text-blue-200">
-                stap 2
-              </div>
-              <p className="mt-1 text-sm">
-                Molverhouding uit de <strong>coëfficiënten</strong>.
-              </p>
-            </div>
-            <div className="rounded-xl bg-white/10 p-3 ring-1 ring-white/15">
-              <div className="text-xs font-bold uppercase tracking-wider text-blue-200">
-                stap 3
-              </div>
-              <p className="mt-1 text-sm">
-                Mol → massa, en zo nodig <strong>mass%</strong> in het mengsel.
-              </p>
-            </div>
-          </div>
-        </div>
-      </div>
-
-      <div className="mx-auto max-w-6xl px-4 sm:px-6 lg:px-8">
-        {/* ---------------- stap 1 ---------------- */}
-        <section className="-mt-6 rounded-2xl bg-white p-5 shadow-lg ring-1 ring-slate-200">
-          <div className="mb-4 flex items-center gap-3">
-            <span className="flex h-8 w-8 items-center justify-center rounded-full bg-indigo-600 text-sm font-black text-white">
-              1
-            </span>
-            <div>
-              <h2 className="text-lg font-black text-slate-900">
-                Welke reactie hoort bij de opgave?
-              </h2>
-              <p className="text-sm text-slate-500">
-                Alleen de stoffen die meedoen. Een andere stof in het mengsel
-                laat je weg.
-              </p>
-            </div>
-          </div>
-
+    <AppPage
+      current="/molverhouding"
+      title="Van stof A naar stof B via"
+      titleHighlight="mol"
+      description="Vul de reactie in, geef de massa (of mol) van één stof, en kies wat je zoekt. Optioneel: de massa van het mengsel — dan volgt het massapercentage."
+      tips={[
+        {
+          kicker: "stap 1",
+          body: (
+            <>
+              Gegeven → <strong>mol</strong> (delen door M).
+            </>
+          ),
+        },
+        {
+          kicker: "stap 2",
+          body: (
+            <>
+              Molverhouding uit de <strong>coëfficiënten</strong>.
+            </>
+          ),
+        },
+        {
+          kicker: "stap 3",
+          body: (
+            <>
+              Mol → massa, en zo nodig <strong>mass%</strong> in het mengsel.
+            </>
+          ),
+        },
+      ]}
+    >
+        <StepSection
+          step={1}
+          first
+          title="Welke reactie hoort bij de opgave?"
+          description="Alleen de stoffen die meedoen. Een andere stof in het mengsel laat je weg."
+        >
           <input
             value={equation}
             onChange={(e) => onEquation(e.target.value)}
             placeholder="bijv. 2 KCl -> 2 K + Cl2"
             spellCheck={false}
             autoComplete="off"
-            className="w-full rounded-xl border-2 border-slate-200 bg-white px-4 py-3 font-mono text-lg font-bold focus:border-indigo-500 focus:outline-none focus:ring-4 focus:ring-indigo-500/20 sm:text-xl"
+            className={inputClass}
           />
 
           <div className="mt-3 flex flex-wrap gap-2">
             <button
               type="button"
               onClick={() => setKeyboardOpen(true)}
-              className="rounded-lg bg-slate-800 px-3 py-2 text-sm font-bold text-white hover:bg-slate-900"
+              className={btnDark}
             >
               ⌨ Elementenkiezer
             </button>
@@ -414,9 +371,9 @@ export default function MolverhoudingPage() {
                 key={eq}
                 type="button"
                 onClick={() => onEquation(eq)}
-                className={`rounded-lg px-2.5 py-2 font-mono text-xs font-semibold transition sm:text-sm ${
+                className={`rounded-lg px-2.5 py-2 font-mono text-xs font-bold transition sm:text-sm ${
                   equation.trim() === eq
-                    ? "bg-indigo-600 text-white"
+                    ? "bg-blue-600 text-white"
                     : "bg-slate-100 text-slate-700 hover:bg-slate-200"
                 }`}
               >
@@ -449,24 +406,13 @@ export default function MolverhoudingPage() {
               </div>
             </div>
           )}
-        </section>
+        </StepSection>
 
-        {/* ---------------- stap 2 ---------------- */}
-        <section className="mt-5 rounded-2xl bg-white p-5 shadow-sm ring-1 ring-slate-200">
-          <div className="mb-4 flex flex-wrap items-start justify-between gap-3">
-            <div className="flex items-center gap-3">
-              <span className="flex h-8 w-8 items-center justify-center rounded-full bg-indigo-600 text-sm font-black text-white">
-                2
-              </span>
-              <div>
-                <h2 className="text-lg font-black text-slate-900">
-                  Wat weet je, wat zoek je?
-                </h2>
-                <p className="text-sm text-slate-500">
-                  Groen = gegeven uit de opgave. Paars = wat je moet berekenen.
-                </p>
-              </div>
-            </div>
+        <StepSection
+          step={2}
+          title="Wat weet je, wat zoek je?"
+          description="Groen = gegeven uit de opgave. Paars = wat je moet berekenen."
+          headerExtra={
             <div className="flex flex-wrap items-center gap-2">
               <span className="text-xs font-bold uppercase tracking-wide text-slate-500">
                 significante cijfers
@@ -488,8 +434,8 @@ export default function MolverhoudingPage() {
                 ))}
               </div>
             </div>
-          </div>
-
+          }
+        >
           {preview.species.length === 0 ? (
             <div className="rounded-xl border-2 border-dashed border-slate-200 px-4 py-10 text-center">
               <p className="font-bold text-slate-600">Eerst een vergelijking.</p>
@@ -608,25 +554,13 @@ export default function MolverhoudingPage() {
               </div>
             </div>
           )}
-        </section>
+        </StepSection>
 
-        {/* ---------------- stap 3 mengsel ---------------- */}
-        <section className="mt-5 rounded-2xl bg-white p-5 shadow-sm ring-1 ring-slate-200">
-          <div className="mb-4 flex items-center gap-3">
-            <span className="flex h-8 w-8 items-center justify-center rounded-full bg-indigo-600 text-sm font-black text-white">
-              3
-            </span>
-            <div>
-              <h2 className="text-lg font-black text-slate-900">
-                Zit de stof in een mengsel?
-              </h2>
-              <p className="text-sm text-slate-500">
-                Optioneel. Vul de totale massa van het mengsel in voor het
-                massapercentage van de gevraagde stof.
-              </p>
-            </div>
-          </div>
-
+        <StepSection
+          step={3}
+          title="Zit de stof in een mengsel?"
+          description="Optioneel. Vul de totale massa van het mengsel in voor het massapercentage van de gevraagde stof."
+        >
           <div className="max-w-md">
             <label className="mb-1 block text-sm font-bold text-slate-700">
               Massa mengsel
@@ -650,12 +584,10 @@ export default function MolverhoudingPage() {
               (bijv. MgO) hoeft niet in de reactie.
             </p>
           </div>
-        </section>
+        </StepSection>
 
-        {/* ---------------- route ---------------- */}
         {ready && given && want && (
-          <section className="mt-5 rounded-2xl bg-white p-5 shadow-sm ring-1 ring-slate-200">
-            <h2 className="mb-4 text-lg font-black text-slate-900">De route</h2>
+          <StepSection title="De route">
             <div className="flex flex-wrap items-stretch gap-2">
               <RouteBox
                 tone="emerald"
@@ -751,33 +683,20 @@ export default function MolverhoudingPage() {
                 </table>
               </div>
             )}
-          </section>
+          </StepSection>
         )}
 
-        {/* ---------------- uitwerking ---------------- */}
-        <section
+        <StepSection
           id="uitwerking"
-          className="mt-5 scroll-mt-4 rounded-2xl bg-white p-5 shadow-sm ring-1 ring-slate-200"
-        >
-          <div className="mb-4 flex flex-wrap items-start justify-between gap-3">
-            <div className="flex items-center gap-3">
-              <span className="flex h-8 w-8 items-center justify-center rounded-full bg-indigo-600 text-sm font-black text-white">
-                4
-              </span>
-              <div>
-                <h2 className="text-lg font-black text-slate-900">
-                  Zo schrijf je het op
-                </h2>
-                <p className="text-sm text-slate-500">
-                  Formule, ingevulde getallen, antwoord — zoals in je schrift.
-                </p>
-              </div>
-            </div>
-            {ready && (
+          step={4}
+          title="Zo schrijf je het op"
+          description="Formule, ingevulde getallen, antwoord — zoals in je schrift."
+          headerExtra={
+            ready ? (
               <button
                 type="button"
                 onClick={copyUitwerking}
-                className="rounded-lg bg-slate-800 px-3 py-2 text-sm font-bold text-white hover:bg-slate-900"
+                className={btnDark}
               >
                 {copyState === "ok"
                   ? "Gekopieerd"
@@ -785,9 +704,9 @@ export default function MolverhoudingPage() {
                   ? "Kopiëren mislukt"
                   : "Kopieer uitwerking"}
               </button>
-            )}
-          </div>
-
+            ) : undefined
+          }
+        >
           {sol.warn && (
             <div className="mb-4 rounded-xl border-2 border-amber-300 bg-amber-50 px-4 py-3 text-sm font-semibold text-amber-900">
               {sol.warn}
@@ -830,28 +749,24 @@ export default function MolverhoudingPage() {
           )}
 
           {ready && sol.massPct === null && want && (
-            <div className="mt-5 rounded-2xl bg-gradient-to-br from-indigo-600 to-blue-700 p-5 text-white shadow-lg">
-              <div className="text-xs font-bold uppercase tracking-widest text-indigo-100">
+            <div className="mt-5 rounded-2xl bg-gradient-to-br from-blue-600 to-indigo-700 p-5 text-white shadow-lg">
+              <div className="text-xs font-bold uppercase tracking-widest text-blue-100">
                 antwoord
               </div>
               <p className="mt-1 font-serif text-3xl font-black">
                 {toPretty(sol.mWant, sig)} g{" "}
-                <span className="text-xl font-semibold text-indigo-100">
+                <span className="text-xl font-semibold text-blue-100">
                   <FormulaView formula={want.formula} />
                 </span>
               </p>
-              <p className="mt-1 text-sm text-indigo-100">
+              <p className="mt-1 text-sm text-blue-100">
                 {toPretty(sol.nWant, sig)} mol
               </p>
             </div>
           )}
 
           <div className="mt-5 flex flex-wrap items-center gap-2 border-t border-slate-100 pt-4">
-            <button
-              type="button"
-              onClick={wisAlles}
-              className="rounded-lg bg-slate-100 px-3 py-2 text-sm font-bold text-slate-700 hover:bg-slate-200"
-            >
+            <button type="button" onClick={wisAlles} className={btnGhost}>
               Wis alles
             </button>
             <span className="text-sm text-slate-400">of pak een opgave:</span>
@@ -861,21 +776,18 @@ export default function MolverhoudingPage() {
                 type="button"
                 onClick={() => laadOpgave(o)}
                 title={o.vraag}
-                className="rounded-lg border border-indigo-200 bg-indigo-50 px-3 py-2 text-sm font-bold text-indigo-700 transition hover:bg-indigo-100"
+                className="rounded-lg border border-blue-200 bg-blue-50 px-3 py-2 text-sm font-bold text-blue-700 transition hover:bg-blue-100"
               >
                 {o.titel}
               </button>
             ))}
           </div>
-        </section>
+        </StepSection>
 
-        {/* ---------------- spiekbrief ---------------- */}
-        <section className="mt-5 rounded-2xl bg-white p-5 shadow-sm ring-1 ring-slate-200">
-          <h2 className="text-lg font-black text-slate-900">Spiekbrief</h2>
-          <p className="mb-4 text-sm text-slate-500">
-            Dezelfde gouden regel als in het rekenschema: naar mol toe delen,
-            van mol af vermenigvuldigen.
-          </p>
+        <StepSection
+          title="Spiekbrief"
+          description="Dezelfde gouden regel als in het rekenschema: naar mol toe delen, van mol af vermenigvuldigen."
+        >
           <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
             {[
               ["n = m ÷ M", "gegeven massa → mol"],
@@ -883,14 +795,13 @@ export default function MolverhoudingPage() {
               ["m = n × M", "mol van de gevraagde stof → massa"],
               ["mass% = m / m_tot × 100%", "alleen bij een mengsel"],
             ].map(([f, uitleg]) => (
-              <div key={f} className="rounded-xl border-l-4 border-indigo-500 bg-indigo-50 p-3">
+              <div key={f} className="rounded-xl border-l-4 border-blue-500 bg-blue-50 p-3">
                 <div className="font-mono text-base font-black text-slate-800">{f}</div>
                 <div className="text-xs text-slate-600">{uitleg}</div>
               </div>
             ))}
           </div>
-        </section>
-      </div>
+        </StepSection>
 
       <PeriodicKeyboardModal
         open={keyboardOpen}
@@ -898,7 +809,7 @@ export default function MolverhoudingPage() {
         onClose={() => setKeyboardOpen(false)}
         onSave={(v) => onEquation(v)}
       />
-    </main>
+    </AppPage>
   );
 }
 

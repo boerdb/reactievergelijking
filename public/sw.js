@@ -2,7 +2,7 @@
 // Strategie: cache-first voor statische assets, network-first voor de HTML,
 // met fallback naar cache wanneer er geen verbinding is.
 
-const CACHE_VERSION = "reactievergelijking-v12";
+const CACHE_VERSION = "reactievergelijking-v13";
 
 // Op localhost draait de dev-server: daar zou cache-first steeds de oude
 // bundel teruggeven, waardoor wijzigingen niet zichtbaar worden.

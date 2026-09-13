@@ -1,8 +1,8 @@
 "use client";
 
 import { useMemo, useState } from "react";
-import Link from "next/link";
 import { calculate } from "@/lib/calc";
+import { AppPage, StepSection } from "@/components/AppShell";
 import { tokenizeFormula } from "@/lib/parser";
 import {
   solve,
@@ -680,95 +680,46 @@ export default function RekenschemaPage() {
   });
 
   return (
-    <main className="min-h-screen bg-slate-50 pb-16">
-      {/* ---------------- kop ---------------- */}
-      <div className="relative overflow-hidden bg-gradient-to-br from-slate-900 via-blue-900 to-indigo-900 text-white">
-        <div
-          className="pointer-events-none absolute inset-0 opacity-25"
-          style={{
-            backgroundImage:
-              "radial-gradient(circle at 1px 1px, rgba(255,255,255,.6) 1px, transparent 0)",
-            backgroundSize: "28px 28px",
-          }}
-          aria-hidden
-        />
-        <div className="relative mx-auto max-w-6xl px-4 py-8 sm:px-6 lg:px-8">
-          <nav className="mb-5 flex flex-wrap items-center gap-x-4 gap-y-1 text-sm">
-            <Link href="/" className="text-blue-200 hover:text-white">
-              ← Vergelijkingen
-            </Link>
-            <Link href="/bereken" className="text-blue-200 hover:text-white">
-              Molecuulmassa
-            </Link>
-            <span className="font-semibold text-white">Rekenschema</span>
-            <Link href="/molverhouding" className="text-blue-200 hover:text-white">
-              Molverhouding
-            </Link>
-          </nav>
-
-          <span className="inline-block rounded-full bg-white/10 px-3 py-1 text-xs font-bold uppercase tracking-widest text-blue-200 ring-1 ring-white/20">
-            chemisch rekenen · 4 havo / vwo
-          </span>
-          <h1 className="mt-3 text-3xl font-black leading-tight sm:text-4xl lg:text-5xl">
-            Alles loopt via{" "}
-            <span className="bg-gradient-to-r from-sky-300 to-emerald-300 bg-clip-text text-transparent">
-              mol
-            </span>
-          </h1>
-          <p className="mt-3 max-w-2xl text-blue-100">
-            Vul één vakje in dat je uit de opgave kent. De rest reken ik uit —
-            en je ziet precies welke route over het schema is gelopen.
-          </p>
-
-          <div className="mt-6 grid gap-3 sm:grid-cols-3">
-            <div className="rounded-xl bg-white/10 p-3 ring-1 ring-white/15">
-              <div className="text-xs font-bold uppercase tracking-wider text-blue-200">
-                de gouden regel
-              </div>
-              <p className="mt-1 text-sm">
-                <strong>Naar mol toe → delen.</strong> Van mol af →
-                vermenigvuldigen.
-              </p>
-            </div>
-            <div className="rounded-xl bg-white/10 p-3 ring-1 ring-white/15">
-              <div className="text-xs font-bold uppercase tracking-wider text-blue-200">
-                de uitzondering
-              </div>
-              <p className="mt-1 text-sm">
-                Bij molariteit is het net andersom: <em>n = c × V</em>, want V
-                staat onder de streep in c.
-              </p>
-            </div>
-            <div className="rounded-xl bg-white/10 p-3 ring-1 ring-white/15">
-              <div className="text-xs font-bold uppercase tracking-wider text-blue-200">
-                let op
-              </div>
-              <p className="mt-1 text-sm">
-                Volume vloeistof hangt aan de <strong>massa</strong>, niet
-                rechtstreeks aan mol.
-              </p>
-            </div>
-          </div>
-        </div>
-      </div>
-
-      <div className="mx-auto max-w-6xl px-4 sm:px-6 lg:px-8">
-        {/* ---------------- stap 1 ---------------- */}
-        <section className="-mt-6 rounded-2xl bg-white p-5 shadow-lg ring-1 ring-slate-200">
-          <div className="mb-4 flex items-center gap-3">
-            <span className="flex h-8 w-8 items-center justify-center rounded-full bg-blue-600 text-sm font-black text-white">
-              1
-            </span>
-            <div>
-              <h2 className="text-lg font-black text-slate-900">
-                Welke stof heb je?
-              </h2>
-              <p className="text-sm text-slate-500">
-                Typ de formule — de molaire massa reken ik er zelf bij.
-              </p>
-            </div>
-          </div>
-
+    <AppPage
+      current="/rekenschema"
+      title="Alles loopt via"
+      titleHighlight="mol"
+      description="Vul één vakje in dat je uit de opgave kent. De rest reken ik uit — en je ziet precies welke route over het schema is gelopen."
+      tips={[
+        {
+          kicker: "de gouden regel",
+          body: (
+            <>
+              <strong>Naar mol toe → delen.</strong> Van mol af → vermenigvuldigen.
+            </>
+          ),
+        },
+        {
+          kicker: "de uitzondering",
+          body: (
+            <>
+              Bij molariteit: <em>n = c × V</em>, want V staat onder de streep in
+              c.
+            </>
+          ),
+        },
+        {
+          kicker: "let op",
+          body: (
+            <>
+              Volume vloeistof hangt aan de <strong>massa</strong>, niet
+              rechtstreeks aan mol.
+            </>
+          ),
+        },
+      ]}
+    >
+        <StepSection
+          step={1}
+          first
+          title="Welke stof heb je?"
+          description="Typ de formule — de molaire massa reken ik er zelf bij."
+        >
           <div className="grid gap-4 lg:grid-cols-[minmax(0,1fr)_minmax(0,1.6fr)]">
             <div>
               <div className="relative">
@@ -884,28 +835,14 @@ export default function RekenschemaPage() {
               </ParamCard>
             </div>
           </div>
-        </section>
+        </StepSection>
 
-        {/* ---------------- stap 2: het schema ---------------- */}
-        <section
+        <StepSection
           id="schema"
-          className="mt-5 scroll-mt-4 rounded-2xl bg-white p-5 shadow-sm ring-1 ring-slate-200"
-        >
-          <div className="mb-4 flex flex-wrap items-start justify-between gap-3">
-            <div className="flex items-center gap-3">
-              <span className="flex h-8 w-8 items-center justify-center rounded-full bg-blue-600 text-sm font-black text-white">
-                2
-              </span>
-              <div>
-                <h2 className="text-lg font-black text-slate-900">
-                  Vul je gegeven in
-                </h2>
-                <p className="text-sm text-slate-500">
-                  Eén vakje is genoeg. Groen = van jou, gekleurd = door mij
-                  berekend.
-                </p>
-              </div>
-            </div>
+          step={2}
+          title="Vul je gegeven in"
+          description="Eén vakje is genoeg. Groen = van jou, gekleurd = door mij berekend."
+          headerExtra={
             <div className="flex flex-wrap items-center gap-2">
               <span className="text-xs font-bold uppercase tracking-wide text-slate-500">
                 significante cijfers
@@ -929,8 +866,8 @@ export default function RekenschemaPage() {
                 · grote/kleine getallen als a × 10ⁿ
               </span>
             </div>
-          </div>
-
+          }
+        >
           {sol.warn && (
             <div className="mb-4 flex flex-wrap items-center gap-3 rounded-xl border-2 border-amber-300 bg-amber-50 px-4 py-3">
               <span className="text-lg" aria-hidden>
@@ -1120,25 +1057,13 @@ export default function RekenschemaPage() {
               </button>
             ))}
           </div>
-        </section>
+        </StepSection>
 
-        {/* ---------------- stap 3: de route ---------------- */}
-        <section className="mt-5 rounded-2xl bg-white p-5 shadow-sm ring-1 ring-slate-200">
-          <div className="mb-4 flex items-center gap-3">
-            <span className="flex h-8 w-8 items-center justify-center rounded-full bg-blue-600 text-sm font-black text-white">
-              3
-            </span>
-            <div>
-              <h2 className="text-lg font-black text-slate-900">
-                Zo schrijf je het op
-              </h2>
-              <p className="text-sm text-slate-500">
-                Formule, ingevulde getallen, antwoord — precies zoals je docent
-                het wil zien.
-              </p>
-            </div>
-          </div>
-
+        <StepSection
+          step={3}
+          title="Zo schrijf je het op"
+          description="Formule, ingevulde getallen, antwoord — precies zoals je docent het wil zien."
+        >
           {sol.steps.length === 0 ? (
             <div className="rounded-xl border-2 border-dashed border-slate-200 px-4 py-10 text-center">
               <p className="text-3xl" aria-hidden>
@@ -1159,14 +1084,12 @@ export default function RekenschemaPage() {
               ))}
             </ol>
           )}
-        </section>
+        </StepSection>
 
-        {/* ---------------- spiekbrief ---------------- */}
-        <section className="mt-5 rounded-2xl bg-white p-5 shadow-sm ring-1 ring-slate-200">
-          <h2 className="text-lg font-black text-slate-900">Spiekbrief</h2>
-          <p className="mb-4 text-sm text-slate-500">
-            De kleuren horen bij de takken van het schema hierboven.
-          </p>
+        <StepSection
+          title="Spiekbrief"
+          description="De kleuren horen bij de takken van het schema hierboven."
+        >
           <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
             {(
               [
@@ -1226,8 +1149,7 @@ export default function RekenschemaPage() {
               </div>
             </div>
           </div>
-        </section>
-      </div>
-    </main>
+        </StepSection>
+    </AppPage>
   );
 }

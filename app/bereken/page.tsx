@@ -1,7 +1,6 @@
 "use client";
 
 import { useState } from "react";
-import Link from "next/link";
 import {
   calculate,
   CalcError,
@@ -16,6 +15,16 @@ import {
 } from "@/lib/calc";
 import { tokenizeFormula } from "@/lib/parser";
 import PeriodicKeyboardModal from "@/components/PeriodicKeyboardModal";
+import {
+  AppPage,
+  StepSection,
+  btnDark,
+  btnGhost,
+  btnPrimary,
+  chipExample,
+  chipExampleActive,
+  inputClass,
+} from "@/components/AppShell";
 
 const EXAMPLES = ["H2O", "CO2", "H2SO4", "Ca(OH)2", "C6H12O6", "NaCl", "Fe2O3", "CuSO4.5H2O"];
 
@@ -83,124 +92,136 @@ export default function BerekenPage() {
       : `${charge}`;
 
   return (
-    <main className="min-h-screen px-4 py-8 sm:px-6 lg:px-8">
-      <div className="mx-auto max-w-3xl">
-        <header className="mb-6">
-          <Link
-            href="/"
-            className="text-sm text-brand-600 hover:text-brand-700"
-          >
-            ← Terug naar vergelijkingen
-          </Link>
-          <div className="mt-1 flex gap-2">
-            <Link href="/" className="text-sm text-brand-600 hover:text-brand-700">← Vergelijkingen</Link>
-            <Link href="/rekenschema" className="text-sm text-brand-600 hover:text-brand-700">Rekenschema</Link>
-            <Link href="/molverhouding" className="text-sm text-brand-600 hover:text-brand-700">Molverhouding →</Link>
-          </div>
-          <h1 className="mt-2 text-3xl font-bold tracking-tight text-slate-900">
-            Molecuulmassa &amp; deeltjes
-          </h1>
-          <p className="mt-2 text-slate-600">
-            Voer een formule in om de molecuulmassa en het aantal protonen,
-            neutronen en elektronen te berekenen.
-          </p>
-        </header>
+    <AppPage
+      current="/bereken"
+      title="Molecuulmassa &"
+      titleHighlight="deeltjes"
+      description="Typ een formule — ik reken de molecuulmassa, protonen, neutronen en elektronen uit. Handig vóór je het rekenschema invult."
+      tips={[
+        {
+          kicker: "M",
+          body: (
+            <>
+              De <strong>molecuulmassa</strong> in u is hetzelfde getal als{" "}
+              <strong>g/mol</strong> in je rekenschema.
+            </>
+          ),
+        },
+        {
+          kicker: "ionen",
+          body: (
+            <>
+              Zet de <strong>lading</strong> met +/− — dan klopt het aantal
+              elektronen.
+            </>
+          ),
+        },
+        {
+          kicker: "massa%",
+          body: (
+            <>
+              Hier zie je massapercentage <strong>per element</strong> in één
+              stof — niet in een mengsel.
+            </>
+          ),
+        },
+      ]}
+    >
+      <StepSection
+        step={1}
+        first
+        title="Welke formule?"
+        description="Haakjes en hydraten werken. Enter of Bereken om te starten."
+      >
+        <label className="sr-only" htmlFor="formula">
+          Formule
+        </label>
+        <input
+          id="formula"
+          type="text"
+          value={formula}
+          onChange={(e) => setFormula(e.target.value)}
+          onKeyDown={(e) => {
+            if (e.key === "Enter") handleCalc();
+          }}
+          placeholder="bijv. H2O of Ca(OH)2"
+          className={inputClass}
+          spellCheck={false}
+          autoComplete="off"
+        />
 
-        <section className="rounded-2xl bg-white p-6 shadow-sm ring-1 ring-slate-200">
-          <label className="block text-sm font-medium text-slate-700">
-            Formule
-          </label>
-          <input
-            type="text"
-            value={formula}
-            onChange={(e) => setFormula(e.target.value)}
-            onKeyDown={(e) => {
-              if (e.key === "Enter") handleCalc();
-            }}
-            placeholder="bijv. H2O of Ca(OH)2"
-            className="mt-2 w-full rounded-lg border border-slate-300 px-3 py-2 font-mono text-lg focus:border-brand-500 focus:outline-none focus:ring-2 focus:ring-brand-500/30"
-            spellCheck={false}
-            autoComplete="off"
-          />
-
-          <div className="mt-3 flex flex-wrap items-end gap-3">
-            <div>
-              <label className="block text-xs font-medium text-slate-600">
-                Lading
-              </label>
-              <div className="mt-1 flex items-center gap-1">
-                <button
-                  onClick={() => setCharge((c) => c - 1)}
-                  className="rounded-md bg-slate-100 px-3 py-1.5 text-sm font-semibold hover:bg-slate-200"
-                >
-                  −
-                </button>
-                <span className="w-12 text-center font-mono text-lg">
-                  {chargeLabel}
-                </span>
-                <button
-                  onClick={() => setCharge((c) => c + 1)}
-                  className="rounded-md bg-slate-100 px-3 py-1.5 text-sm font-semibold hover:bg-slate-200"
-                >
-                  +
-                </button>
-              </div>
+        <div className="mt-3 flex flex-wrap items-end gap-3">
+          <div>
+            <label className="block text-xs font-bold uppercase tracking-wide text-slate-500">
+              Lading
+            </label>
+            <div className="mt-1 flex items-center gap-1">
+              <button
+                type="button"
+                onClick={() => setCharge((c) => c - 1)}
+                className="rounded-lg bg-slate-100 px-3 py-1.5 text-sm font-bold hover:bg-slate-200"
+              >
+                −
+              </button>
+              <span className="w-14 text-center font-mono text-lg font-bold">
+                {chargeLabel}
+              </span>
+              <button
+                type="button"
+                onClick={() => setCharge((c) => c + 1)}
+                className="rounded-lg bg-slate-100 px-3 py-1.5 text-sm font-bold hover:bg-slate-200"
+              >
+                +
+              </button>
             </div>
           </div>
+        </div>
 
-          <div className="mt-4 flex flex-wrap gap-2">
+        <div className="mt-4 flex flex-wrap gap-2">
+          <button type="button" onClick={handleCalc} className={btnPrimary}>
+            Bereken
+          </button>
+          <button
+            type="button"
+            onClick={() => setKeyboardOpen(true)}
+            className={btnDark}
+          >
+            ⌨ Elementenkiezer
+          </button>
+          <button type="button" onClick={handleClear} className={btnGhost}>
+            Wissen
+          </button>
+        </div>
+
+        <div className="mt-5 flex flex-wrap items-center gap-2 border-t border-slate-100 pt-4">
+          <span className="text-sm text-slate-400">Voorbeelden:</span>
+          {EXAMPLES.map((f) => (
             <button
-              onClick={handleCalc}
-              className="rounded-lg bg-brand-600 px-4 py-2 text-sm font-semibold text-white shadow-sm transition hover:bg-brand-700"
+              key={f}
+              type="button"
+              onClick={() => loadExample(f)}
+              className={
+                formula.trim() === f ? chipExampleActive : chipExample
+              }
             >
-              Bereken
+              {f}
             </button>
-            <button
-              onClick={() => setKeyboardOpen(true)}
-              className="rounded-lg bg-slate-800 px-4 py-2 text-sm font-semibold text-white shadow-sm transition hover:bg-slate-900"
-            >
-              ⌨ Elementenkiezer
-            </button>
-            <button
-              onClick={handleClear}
-              className="rounded-lg bg-slate-100 px-4 py-2 text-sm font-semibold text-slate-700 transition hover:bg-slate-200"
-            >
-              Wissen
-            </button>
+          ))}
+        </div>
+      </StepSection>
+
+      {error && (
+        <StepSection title="Fout" description="">
+          <div className="rounded-xl border-2 border-red-200 bg-red-50 px-4 py-3 text-sm font-semibold text-red-800">
+            {error}
           </div>
-        </section>
+        </StepSection>
+      )}
 
-        {/* Voorbeelden */}
-        <section className="mt-6 rounded-2xl bg-white p-6 shadow-sm ring-1 ring-slate-200">
-          <h2 className="text-sm font-semibold text-slate-700">Voorbeelden</h2>
-          <div className="mt-3 flex flex-wrap gap-2">
-            {EXAMPLES.map((f) => (
-              <button
-                key={f}
-                onClick={() => loadExample(f)}
-                className="rounded-full bg-slate-100 px-3 py-1 font-mono text-sm text-slate-700 transition hover:bg-slate-200"
-              >
-                {f}
-              </button>
-            ))}
-          </div>
-        </section>
-
-        {/* Foutmelding */}
-        {error && (
-          <section className="mt-6 rounded-2xl bg-red-50 p-6 shadow-sm ring-1 ring-red-200">
-            <h2 className="text-base font-semibold text-red-800">✗ Fout</h2>
-            <p className="mt-1 text-sm text-red-700">{error}</p>
-          </section>
-        )}
-
-        {/* Resultaat */}
-        {result && (
-          <>
-            {/* Formule-weergave */}
-            <section className="mt-6 rounded-2xl bg-white p-6 shadow-sm ring-1 ring-slate-200">
-              <h2 className="text-sm font-semibold text-slate-700">Formule</h2>
-              <div className="mt-3 overflow-x-auto rounded-lg bg-slate-50 p-4 font-serif text-3xl">
+      {result && (
+        <>
+          <StepSection step={2} title="Formule">
+              <div className="overflow-x-auto rounded-xl bg-slate-50 p-4 font-serif text-3xl ring-1 ring-slate-100">
                 <FormulaView formula={result.formula} />
                 {result.charge !== 0 && (
                   <sup className="ml-0.5">
@@ -208,12 +229,10 @@ export default function BerekenPage() {
                   </sup>
                 )}
               </div>
-            </section>
+          </StepSection>
 
-            {/* Hoofdresultaten */}
-            <section className="mt-6 rounded-2xl bg-white p-6 shadow-sm ring-1 ring-slate-200">
-              <h2 className="text-sm font-semibold text-slate-700">Uitkomst</h2>
-              <div className="mt-3 grid grid-cols-2 gap-3 sm:grid-cols-4">
+          <StepSection step={3} title="Uitkomst">
+              <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
                 <Stat label="Molecuulmassa" value={`${fmt(result.mass)} u`} accent />
                 <Stat label="Protonen" value={String(result.protons)} />
                 <Stat label="Neutronen" value={String(result.neutrons)} />
@@ -225,14 +244,10 @@ export default function BerekenPage() {
                   {result.charge} — elektronen = protonen − |lading|
                 </p>
               )}
-            </section>
+          </StepSection>
 
-            {/* Per-element breakdown */}
-            <section className="mt-6 rounded-2xl bg-white p-6 shadow-sm ring-1 ring-slate-200">
-              <h2 className="text-sm font-semibold text-slate-700">
-                Per element
-              </h2>
-              <div className="mt-3 overflow-x-auto">
+          <StepSection step={4} title="Per element">
+              <div className="overflow-x-auto">
                 <table className="w-full text-sm">
                   <thead>
                     <tr className="text-left text-slate-600 border-b border-slate-200">
@@ -294,14 +309,10 @@ export default function BerekenPage() {
                 atoomnummer; dit is een benadering voor elementen met meerdere
                 isotopen.
               </p>
-            </section>
+          </StepSection>
 
-            {/* Massapercentage */}
-            <section className="mt-6 rounded-2xl bg-white p-6 shadow-sm ring-1 ring-slate-200">
-              <h2 className="text-sm font-semibold text-slate-700">
-                Massapercentage per element
-              </h2>
-              <div className="mt-3 space-y-3">
+          <StepSection step={5} title="Massapercentage per element">
+              <div className="space-y-3">
                 {massPercentages(result).map((p) => (
                   <div key={p.symbol}>
                     <div className="flex items-center justify-between text-sm">
@@ -317,21 +328,21 @@ export default function BerekenPage() {
                     </div>
                     <div className="mt-1 h-2 w-full overflow-hidden rounded-full bg-slate-100">
                       <div
-                        className="h-full rounded-full bg-brand-500"
+                        className="h-full rounded-full bg-blue-600"
                         style={{ width: `${Math.min(p.pct, 100)}%` }}
                       />
                     </div>
                   </div>
                 ))}
               </div>
-            </section>
+          </StepSection>
 
-            {/* Mol-berekeningen */}
-            <section className="mt-6 rounded-2xl bg-white p-6 shadow-sm ring-1 ring-slate-200">
-              <h2 className="text-sm font-semibold text-slate-700">
-                Mol-berekeningen
-              </h2>
-              <p className="mt-1 text-xs text-slate-500">
+          <StepSection
+            step={6}
+            title="Mol-berekeningen"
+            description="Snelle omrekening — voor uitgebreide routes gebruik het rekenschema."
+          >
+              <p className="mb-4 text-xs text-slate-500">
                 Molaire massa:{" "}
                 <span className="font-mono font-semibold">
                   {fmt(result.mass)} g/mol
@@ -426,9 +437,24 @@ export default function BerekenPage() {
                   </div>
                 )}
               </div>
-            </section>
-          </>
-        )}
+          </StepSection>
+        </>
+      )}
+
+      {!result && !error && (
+        <StepSection
+          step={2}
+          title="Resultaat"
+          description="Bereken een formule — hier verschijnen massa, deeltjes en tabellen."
+        >
+          <div className="rounded-xl border-2 border-dashed border-slate-200 px-4 py-10 text-center">
+            <p className="text-3xl" aria-hidden>
+              🧪
+            </p>
+            <p className="mt-2 font-bold text-slate-600">Nog geen formule berekend.</p>
+          </div>
+        </StepSection>
+      )}
 
         <PeriodicKeyboardModal
           open={keyboardOpen}
@@ -440,8 +466,7 @@ export default function BerekenPage() {
             setError(null);
           }}
         />
-      </div>
-    </main>
+    </AppPage>
   );
 }
 
@@ -458,14 +483,14 @@ function Stat({
     <div
       className={`rounded-lg p-4 ${
         accent
-          ? "bg-brand-50 ring-1 ring-brand-200"
+          ? "bg-blue-50 ring-1 ring-blue-200"
           : "bg-slate-50 ring-1 ring-slate-200"
       }`}
     >
       <div className="text-xs font-medium text-slate-500">{label}</div>
       <div
         className={`mt-1 text-2xl font-bold ${
-          accent ? "text-brand-700" : "text-slate-900"
+          accent ? "text-blue-700" : "text-slate-900"
         }`}
       >
         {value}
