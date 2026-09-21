@@ -8,32 +8,159 @@ export type AppRoute =
   | "/molverhouding"
   | "/zouten";
 
-const NAV: { href: AppRoute; label: string }[] = [
-  { href: "/", label: "Vergelijkingen" },
-  { href: "/bereken", label: "Molecuulmassa" },
-  { href: "/rekenschema", label: "Rekenschema" },
-  { href: "/molverhouding", label: "Molverhouding" },
-  { href: "/zouten", label: "Zouten" },
+function IconEquation() {
+  return (
+    <svg
+      viewBox="0 0 24 24"
+      className="h-5 w-5"
+      fill="none"
+      stroke="currentColor"
+      strokeWidth="1.9"
+      strokeLinecap="round"
+      strokeLinejoin="round"
+      aria-hidden
+    >
+      <path d="M4 9h16l-3.2-3.2" />
+      <path d="M20 15H4l3.2 3.2" />
+    </svg>
+  );
+}
+
+function IconAtom() {
+  return (
+    <svg
+      viewBox="0 0 24 24"
+      className="h-5 w-5"
+      fill="none"
+      stroke="currentColor"
+      strokeWidth="1.7"
+      aria-hidden
+    >
+      <circle cx="12" cy="12" r="2.1" fill="currentColor" stroke="none" />
+      <ellipse cx="12" cy="12" rx="9" ry="3.6" />
+      <ellipse
+        cx="12"
+        cy="12"
+        rx="9"
+        ry="3.6"
+        transform="rotate(60 12 12)"
+      />
+      <ellipse
+        cx="12"
+        cy="12"
+        rx="9"
+        ry="3.6"
+        transform="rotate(120 12 12)"
+      />
+    </svg>
+  );
+}
+
+function IconSchema() {
+  return (
+    <svg
+      viewBox="0 0 24 24"
+      className="h-5 w-5"
+      fill="none"
+      stroke="currentColor"
+      strokeWidth="1.8"
+      strokeLinejoin="round"
+      aria-hidden
+    >
+      <rect x="7" y="2.5" width="10" height="6" rx="1.4" />
+      <path d="M12 8.5v2.3" strokeLinecap="round" />
+      <path d="M6 10.8h12" strokeLinecap="round" />
+      <path d="M6 10.8V13M18 10.8V13" strokeLinecap="round" />
+      <rect x="2.5" y="13" width="8.5" height="8.5" rx="1.4" />
+      <rect x="13" y="13" width="8.5" height="8.5" rx="1.4" />
+    </svg>
+  );
+}
+
+function IconRatio() {
+  return (
+    <svg
+      viewBox="0 0 24 24"
+      className="h-5 w-5"
+      fill="none"
+      stroke="currentColor"
+      strokeWidth="1.8"
+      strokeLinecap="round"
+      aria-hidden
+    >
+      <circle cx="6.2" cy="12" r="4.2" />
+      <circle cx="12" cy="9.4" r="1.05" fill="currentColor" stroke="none" />
+      <circle cx="12" cy="14.6" r="1.05" fill="currentColor" stroke="none" />
+      <circle cx="18.4" cy="12" r="3.1" />
+    </svg>
+  );
+}
+
+function IconSalt() {
+  return (
+    <svg
+      viewBox="0 0 24 24"
+      className="h-5 w-5"
+      fill="none"
+      stroke="currentColor"
+      strokeWidth="1.8"
+      strokeLinecap="round"
+      aria-hidden
+    >
+      <circle cx="7.4" cy="12" r="5" />
+      <path d="M7.4 9.6v4.8M5 12h4.8" />
+      <circle cx="16.6" cy="12" r="5" />
+      <path d="M14.2 12h4.8" />
+    </svg>
+  );
+}
+
+const NAV: {
+  href: AppRoute;
+  label: string;
+  Icon: () => JSX.Element;
+}[] = [
+  { href: "/", label: "Vergelijkingen", Icon: IconEquation },
+  { href: "/bereken", label: "Molecuulmassa", Icon: IconAtom },
+  { href: "/rekenschema", label: "Rekenschema", Icon: IconSchema },
+  { href: "/molverhouding", label: "Molverhouding", Icon: IconRatio },
+  { href: "/zouten", label: "Zouten", Icon: IconSalt },
 ];
 
 export function AppNav({ current }: { current: AppRoute }) {
   return (
-    <nav className="mb-5 flex flex-wrap items-center gap-x-4 gap-y-1 text-sm">
-      {NAV.map(({ href, label }) =>
-        href === current ? (
-          <span key={href} className="font-semibold text-white">
-            {label}
+    <nav
+      className="ml-auto inline-flex items-center gap-1 rounded-2xl bg-white/10 p-1 ring-1 ring-white/15"
+      aria-label="Hoofdnavigatie"
+    >
+      {NAV.map(({ href, label, Icon }) => {
+        const active = href === current;
+        const className = active
+          ? "group relative flex h-10 w-10 items-center justify-center rounded-xl bg-white text-blue-900 shadow-md"
+          : "group relative flex h-10 w-10 items-center justify-center rounded-xl text-blue-100 transition hover:bg-white/15 hover:text-white";
+        const inner = (
+          <>
+            <Icon />
+            <span
+              className="pointer-events-none absolute left-1/2 top-full z-20 mt-2 -translate-x-1/2 whitespace-nowrap rounded-lg bg-slate-950 px-2.5 py-1 text-xs font-semibold text-white opacity-0 shadow-lg transition group-hover:opacity-100 group-focus-within:opacity-100"
+              aria-hidden
+            >
+              {label}
+            </span>
+          </>
+        );
+
+        return active ? (
+          <span key={href} aria-current="page" className={className}>
+            {inner}
+            <span className="sr-only">{label}</span>
           </span>
         ) : (
-          <Link
-            key={href}
-            href={href}
-            className="text-blue-200 transition hover:text-white"
-          >
-            {href === "/" ? `← ${label}` : label}
+          <Link key={href} href={href} aria-label={label} className={className}>
+            {inner}
           </Link>
-        )
-      )}
+        );
+      })}
     </nav>
   );
 }
@@ -73,12 +200,13 @@ export function AppPage({
           aria-hidden
         />
         <div className="relative mx-auto max-w-6xl px-4 py-8 sm:px-6 lg:px-8">
-          <AppNav current={current} />
-
-          <span className="inline-block rounded-full bg-white/10 px-3 py-1 text-xs font-bold uppercase tracking-widest text-blue-200 ring-1 ring-white/20">
-            chemisch rekenen · 4 havo / vwo
-          </span>
-          <h1 className="mt-3 text-3xl font-black leading-tight sm:text-4xl lg:text-5xl">
+          <div className="mb-4 flex flex-wrap items-center justify-between gap-3">
+            <span className="inline-block rounded-full bg-white/10 px-3 py-1 text-xs font-bold uppercase tracking-widest text-blue-200 ring-1 ring-white/20">
+              chemisch rekenen · 4 havo / vwo
+            </span>
+            <AppNav current={current} />
+          </div>
+          <h1 className="text-3xl font-black leading-tight sm:text-4xl lg:text-5xl">
             {title}
             {titleHighlight != null && (
               <>
