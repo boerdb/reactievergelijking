@@ -1,13 +1,19 @@
 import Link from "next/link";
 import type { ReactNode } from "react";
 
-export type AppRoute = "/" | "/bereken" | "/rekenschema" | "/molverhouding";
+export type AppRoute =
+  | "/"
+  | "/bereken"
+  | "/rekenschema"
+  | "/molverhouding"
+  | "/zouten";
 
 const NAV: { href: AppRoute; label: string }[] = [
   { href: "/", label: "Vergelijkingen" },
   { href: "/bereken", label: "Molecuulmassa" },
   { href: "/rekenschema", label: "Rekenschema" },
   { href: "/molverhouding", label: "Molverhouding" },
+  { href: "/zouten", label: "Zouten" },
 ];
 
 export function AppNav({ current }: { current: AppRoute }) {
