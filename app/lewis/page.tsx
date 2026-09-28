@@ -113,19 +113,40 @@ function LewisDiagram({ result }: { result: LewisResult }) {
     const px = -uy;
     const py = ux;
     const dots: JSX.Element[] = [];
-    const ring = 22;
+    const ring = 26;
+
+    // Eindstandig: houd paren uit de bindingsrichting (halve cirkel aan de buitenkant).
+    // Centraal: verdeel gelijkmatig rondom.
+    const angles: number[] = [];
+    if (towardCentral) {
+      if (pairs === 1) angles.push(0);
+      else if (pairs === 2) angles.push(-Math.PI * 0.55, Math.PI * 0.55);
+      else if (pairs === 3)
+        angles.push(-Math.PI * 0.7, 0, Math.PI * 0.7);
+      else {
+        for (let p = 0; p < pairs; p++) {
+          angles.push(-Math.PI * 0.75 + (p * 1.5 * Math.PI) / (pairs - 1));
+        }
+      }
+    } else {
+      for (let p = 0; p < pairs; p++) {
+        angles.push((p * 2 * Math.PI) / pairs - Math.PI / 2);
+      }
+    }
+
     for (let p = 0; p < pairs; p++) {
-      // Verdeel paren rond het atoom, startend aan de 'buiten'-kant.
-      const a = (p / Math.max(pairs, 1)) * Math.PI * 2;
+      const a = angles[p];
       const ox = Math.cos(a) * ux + Math.sin(a) * px;
       const oy = Math.cos(a) * uy + Math.sin(a) * py;
       const bx = x + ox * ring;
       const by = y + oy * ring;
-      // Twee puntjes loodrecht op de radiale richting.
+      // Twee puntjes loodrecht op de radiale richting van dit paar.
+      const tx = -oy;
+      const ty = ox;
       dots.push(
         <g key={p}>
-          <circle cx={bx - px * 4} cy={by - py * 4} r={2.4} fill="#0f172a" />
-          <circle cx={bx + px * 4} cy={by + py * 4} r={2.4} fill="#0f172a" />
+          <circle cx={bx - tx * 4} cy={by - ty * 4} r={2.6} fill="#0f172a" />
+          <circle cx={bx + tx * 4} cy={by + ty * 4} r={2.6} fill="#0f172a" />
         </g>
       );
     }
@@ -270,8 +291,13 @@ export default function LewisPage() {
   function loadExample(ex: Example) {
     setFormula(ex.formula);
     setCharge(ex.charge);
-    setResult(null);
-    setError(null);
+    try {
+      setResult(buildLewis(ex.formula, ex.charge));
+      setError(null);
+    } catch (e) {
+      setResult(null);
+      setError(e instanceof LewisError ? e.message : "Onverwachte fout.");
+    }
   }
 
   return (
