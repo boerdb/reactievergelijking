@@ -58,74 +58,103 @@ function chargeLabel(charge: number): string {
   return charge > 0 ? `+${charge}` : `${charge}`;
 }
 
+/** Officiële ionlading naast het haakje: ⁻, ⁺, ²⁻. */
+function ionChargeMark(charge: number): string {
+  const sign = charge > 0 ? "⁺" : "⁻";
+  const n = Math.abs(charge);
+  if (n === 1) return sign;
+  const digits = "⁰¹²³⁴⁵⁶⁷⁸⁹";
+  return (
+    String(n)
+      .split("")
+      .map((d) => digits[Number(d)] ?? "")
+      .join("") + sign
+  );
+}
+
 /** SVG-tekening van de Lewisstructuur. */
 function LewisDiagram({ result }: { result: LewisResult }) {
   const central = result.atoms.find((a) => a.role === "central")!;
   const terminals = result.atoms.filter((a) => a.role === "terminal");
-  const W = 360;
-  const H = 280;
+  const W = 480;
+  const H = 360;
   const cx = W / 2;
   const cy = H / 2;
-  const R = terminals.length <= 1 ? 0 : terminals.length === 2 ? 100 : 105;
 
   const positions = new Map<string, { x: number; y: number }>();
-  positions.set(central.id, { x: cx, y: cy });
 
-  terminals.forEach((t, i) => {
-    // Start bovenaan, met lichte rotatie zodat 2-atomen horizontaal staan.
-    const base =
-      terminals.length === 2
-        ? -Math.PI / 2 + (i === 0 ? -Math.PI / 2 : Math.PI / 2)
-        : -Math.PI / 2 + (i * 2 * Math.PI) / terminals.length;
-    // Voor AX2E2 (H2O): plaats terminals iets omhoog i.p.v. exact tegenover.
-    let angle = base;
-    if (terminals.length === 2 && central.lonePairs >= 2) {
-      angle = i === 0 ? -Math.PI * 0.72 : -Math.PI * 0.28;
-    } else if (terminals.length === 2) {
-      angle = i === 0 ? Math.PI : 0;
-    } else if (terminals.length === 3 && central.lonePairs >= 1) {
-      // NH3-achtig: driehoek onder het centrale atoom
-      angle = Math.PI / 2 + ((i - 1) * (2 * Math.PI)) / 3.2;
-    }
-    positions.set(t.id, {
-      x: cx + R * Math.cos(angle),
-      y: cy + R * Math.sin(angle),
+  if (terminals.length === 0) {
+    positions.set(central.id, { x: cx, y: cy });
+  } else if (terminals.length === 1) {
+    // Diatom (CN⁻, N₂, O₂, HF): naast elkaar, niet op elkaar.
+    const gap = 86;
+    positions.set(central.id, { x: cx - gap, y: cy });
+    positions.set(terminals[0].id, { x: cx + gap, y: cy });
+  } else if (terminals.length === 2 && central.lonePairs >= 1) {
+    // Gebogen (H₂O, SO₂): bindingen naar beneden, vrije paren blijven boven.
+    positions.set(central.id, { x: cx, y: cy - 18 });
+    const spread = central.lonePairs >= 2 ? 0.52 : 0.58;
+    terminals.forEach((t, i) => {
+      const angle = Math.PI / 2 + (i === 0 ? -spread : spread);
+      positions.set(t.id, {
+        x: cx + 112 * Math.cos(angle),
+        y: cy - 18 + 112 * Math.sin(angle),
+      });
     });
-  });
+  } else if (terminals.length === 2) {
+    // Lineair (CO₂).
+    positions.set(central.id, { x: cx, y: cy });
+    positions.set(terminals[0].id, { x: cx - 118, y: cy });
+    positions.set(terminals[1].id, { x: cx + 118, y: cy });
+  } else if (terminals.length === 3 && central.lonePairs >= 1) {
+    // NH₃: vrij paar boven, drie bindingen eronder.
+    positions.set(central.id, { x: cx, y: cy - 24 });
+    terminals.forEach((t, i) => {
+      const angle = Math.PI / 2 + (i - 1) * 0.7;
+      positions.set(t.id, {
+        x: cx + 116 * Math.cos(angle),
+        y: cy - 8 + 104 * Math.sin(angle),
+      });
+    });
+  } else {
+    positions.set(central.id, { x: cx, y: cy });
+    const R = 116;
+    terminals.forEach((t, i) => {
+      const angle = -Math.PI / 2 + (i * 2 * Math.PI) / terminals.length;
+      positions.set(t.id, {
+        x: cx + R * Math.cos(angle),
+        y: cy + R * Math.sin(angle),
+      });
+    });
+  }
 
-  function lonePairDots(
+  function pairLayout(
     x: number,
     y: number,
     pairs: number,
-    towardCentral?: { x: number; y: number }
-  ) {
-    if (pairs <= 0) return null;
-    // Richting weg van centraal atoom (of omhoog als centraal zelf).
+    awayFrom?: { x: number; y: number }
+  ): { x: number; y: number }[] {
+    if (pairs <= 0) return [];
     let ux = 0;
     let uy = -1;
-    if (towardCentral) {
-      const dx = x - towardCentral.x;
-      const dy = y - towardCentral.y;
+    if (awayFrom) {
+      const dx = x - awayFrom.x;
+      const dy = y - awayFrom.y;
       const len = Math.hypot(dx, dy) || 1;
       ux = dx / len;
       uy = dy / len;
     }
     const px = -uy;
     const py = ux;
-    const dots: JSX.Element[] = [];
-    const ring = 26;
-
-    // Eindstandig: houd paren uit de bindingsrichting (halve cirkel aan de buitenkant).
-    // Centraal: verdeel gelijkmatig rondom.
+    const ring = 34;
     const angles: number[] = [];
-    if (towardCentral) {
+    if (awayFrom) {
       if (pairs === 1) angles.push(0);
-      else if (pairs === 2) angles.push(-Math.PI * 0.55, Math.PI * 0.55);
-      else if (pairs === 3)
-        angles.push(-Math.PI * 0.7, 0, Math.PI * 0.7);
+      else if (pairs === 2) angles.push(-0.42 * Math.PI, 0.42 * Math.PI);
+      else if (pairs === 3) angles.push(-0.5 * Math.PI, 0, 0.5 * Math.PI);
       else {
         for (let p = 0; p < pairs; p++) {
-          angles.push(-Math.PI * 0.75 + (p * 1.5 * Math.PI) / (pairs - 1));
+          angles.push(-0.72 * Math.PI + (p * 1.44 * Math.PI) / (pairs - 1));
         }
       }
     } else {
@@ -133,24 +162,71 @@ function LewisDiagram({ result }: { result: LewisResult }) {
         angles.push((p * 2 * Math.PI) / pairs - Math.PI / 2);
       }
     }
+    return angles.map((a) => ({
+      x: x + (Math.cos(a) * ux + Math.sin(a) * px) * ring,
+      y: y + (Math.cos(a) * uy + Math.sin(a) * py) * ring,
+    }));
+  }
 
-    for (let p = 0; p < pairs; p++) {
-      const a = angles[p];
-      const ox = Math.cos(a) * ux + Math.sin(a) * px;
-      const oy = Math.cos(a) * uy + Math.sin(a) * py;
-      const bx = x + ox * ring;
-      const by = y + oy * ring;
-      // Twee puntjes loodrecht op de radiale richting van dit paar.
-      const tx = -oy;
-      const ty = ox;
-      dots.push(
-        <g key={p}>
-          <circle cx={bx - tx * 4} cy={by - ty * 4} r={2.6} fill="#0f172a" />
-          <circle cx={bx + tx * 4} cy={by + ty * 4} r={2.6} fill="#0f172a" />
-        </g>
-      );
+  function lonePairDots(
+    x: number,
+    y: number,
+    pairs: number,
+    awayFrom?: { x: number; y: number }
+  ) {
+    const centers = pairLayout(x, y, pairs, awayFrom);
+    if (centers.length === 0) return null;
+    return (
+      <g>
+        {centers.map((c, p) => {
+          const ox = c.x - x;
+          const oy = c.y - y;
+          const len = Math.hypot(ox, oy) || 1;
+          const tx = -oy / len;
+          const ty = ox / len;
+          const gap = 5;
+          return (
+            <g key={p}>
+              <circle cx={c.x - tx * gap} cy={c.y - ty * gap} r={3.2} fill="#0f172a" />
+              <circle cx={c.x + tx * gap} cy={c.y + ty * gap} r={3.2} fill="#0f172a" />
+            </g>
+          );
+        })}
+      </g>
+    );
+  }
+
+  function chargeAnchor(
+    x: number,
+    y: number,
+    pairs: number,
+    awayFrom: { x: number; y: number } | undefined,
+    bondTargets: { x: number; y: number }[]
+  ) {
+    const centers = pairLayout(x, y, pairs, awayFrom);
+    let best = { x: x, y: y - 24, score: -1 };
+    for (let i = 0; i < 8; i++) {
+      const a = -Math.PI / 2 + (i * Math.PI) / 4;
+      const cxp = x + Math.cos(a) * 24;
+      const cyp = y + Math.sin(a) * 24;
+      let minD = 80;
+      for (const c of centers) {
+        minD = Math.min(minD, Math.hypot(cxp - c.x, cyp - c.y));
+      }
+      for (const b of bondTargets) {
+        const dx = b.x - x;
+        const dy = b.y - y;
+        const len = Math.hypot(dx, dy) || 1;
+        minD = Math.min(
+          minD,
+          Math.hypot(cxp - (x + (dx / len) * 20), cyp - (y + (dy / len) * 20))
+        );
+      }
+      // Liever boven het atoom, zolang dat vrij is.
+      const score = minD + (y - cyp) * 0.12;
+      if (score > best.score) best = { x: cxp, y: cyp, score };
     }
-    return <g>{dots}</g>;
+    return best;
   }
 
   function bondLines(
@@ -193,6 +269,56 @@ function LewisDiagram({ result }: { result: LewisResult }) {
     );
   }
 
+  const drawn = result.atoms.map((atom) => {
+    const p = positions.get(atom.id)!;
+    // Vrije paren wijzen weg van de binding. Bij een symmetrisch
+    // molecuul (CO₂, CH₄) vallen de buren samen op het atoom zelf;
+    // dan verdelen we de paren gelijkmatig.
+    const neighbors =
+      atom.role === "terminal"
+        ? [positions.get(central.id)!]
+        : terminals.map((t) => positions.get(t.id)!);
+    const mx =
+      neighbors.reduce((s, n) => s + n.x, 0) / (neighbors.length || 1);
+    const my =
+      neighbors.reduce((s, n) => s + n.y, 0) / (neighbors.length || 1);
+    const awayFrom =
+      neighbors.length > 0 && Math.hypot(mx - p.x, my - p.y) > 12
+        ? { x: mx, y: my }
+        : undefined;
+    return {
+      atom,
+      p,
+      awayFrom,
+      formal: chargeAnchor(p.x, p.y, atom.lonePairs, awayFrom, neighbors),
+      pairs: pairLayout(p.x, p.y, atom.lonePairs, awayFrom),
+    };
+  });
+
+  // Haken alleen bij een ion (netto lading ≠ 0), om de hele structuur.
+  let minX = W;
+  let maxX = 0;
+  let minY = H;
+  let maxY = 0;
+  function cover(x: number, y: number, r: number) {
+    minX = Math.min(minX, x - r);
+    maxX = Math.max(maxX, x + r);
+    minY = Math.min(minY, y - r);
+    maxY = Math.max(maxY, y + r);
+  }
+  for (const d of drawn) {
+    cover(d.p.x, d.p.y, 16);
+    for (const c of d.pairs) cover(c.x, c.y, 9);
+    if (d.atom.formalCharge !== 0) cover(d.formal.x, d.formal.y, 11);
+  }
+  const showBrackets = result.charge !== 0;
+  const bracketPad = 20;
+  const bx1 = minX - bracketPad;
+  const by1 = minY - bracketPad;
+  const bx2 = maxX + bracketPad;
+  const by2 = maxY + bracketPad;
+  const arm = 14;
+
   return (
     <svg
       viewBox={`0 0 ${W} ${H}`}
@@ -204,59 +330,65 @@ function LewisDiagram({ result }: { result: LewisResult }) {
       )}`}
     >
       <rect x="0" y="0" width={W} height={H} fill="#f8fafc" rx="16" />
+      {showBrackets && (
+        <g
+          fill="none"
+          stroke="#1e293b"
+          strokeWidth={2.4}
+          strokeLinecap="square"
+          strokeLinejoin="miter"
+        >
+          <path d={`M ${bx1 + arm} ${by1} H ${bx1} V ${by2} H ${bx1 + arm}`} />
+          <path d={`M ${bx2 - arm} ${by1} H ${bx2} V ${by2} H ${bx2 - arm}`} />
+        </g>
+      )}
       {result.bonds.map((b) => {
         const a = positions.get(b.from)!;
         const c = positions.get(b.to)!;
         return bondLines(a.x, a.y, c.x, c.y, b.order, `${b.from}-${b.to}`);
       })}
-      {result.atoms.map((atom) => {
-        const p = positions.get(atom.id)!;
-        const toward =
-          atom.role === "terminal"
-            ? positions.get(central.id)
-            : undefined;
-        return (
-          <g key={atom.id}>
-            {lonePairDots(p.x, p.y, atom.lonePairs, toward)}
+      {drawn.map((d) => (
+        <g key={d.atom.id}>
+          {lonePairDots(d.p.x, d.p.y, d.atom.lonePairs, d.awayFrom)}
+          <text
+            x={d.p.x}
+            y={d.p.y}
+            textAnchor="middle"
+            dominantBaseline="central"
+            className="fill-slate-900"
+            style={{
+              fontSize: 26,
+              fontWeight: 800,
+              fontFamily: "ui-sans-serif, system-ui, sans-serif",
+            }}
+          >
+            {d.atom.symbol}
+          </text>
+          {d.atom.formalCharge !== 0 && (
             <text
-              x={p.x}
-              y={p.y}
+              x={d.formal.x}
+              y={d.formal.y}
               textAnchor="middle"
               dominantBaseline="central"
-              className="fill-slate-900"
-              style={{
-                fontSize: atom.role === "central" ? 28 : 24,
-                fontWeight: 800,
-                fontFamily: "ui-sans-serif, system-ui, sans-serif",
-              }}
+              className="fill-blue-700"
+              style={{ fontSize: 13, fontWeight: 700 }}
             >
-              {atom.symbol}
+              {d.atom.formalCharge > 0
+                ? `+${d.atom.formalCharge}`
+                : d.atom.formalCharge}
             </text>
-            {atom.formalCharge !== 0 && (
-              <text
-                x={p.x + 14}
-                y={p.y - 14}
-                textAnchor="middle"
-                className="fill-blue-700"
-                style={{ fontSize: 12, fontWeight: 700 }}
-              >
-                {atom.formalCharge > 0
-                  ? `+${atom.formalCharge}`
-                  : atom.formalCharge}
-              </text>
-            )}
-          </g>
-        );
-      })}
-      {result.charge !== 0 && (
+          )}
+        </g>
+      ))}
+      {showBrackets && (
         <text
-          x={W - 16}
-          y={24}
-          textAnchor="end"
-          className="fill-slate-500"
-          style={{ fontSize: 14, fontWeight: 700 }}
+          x={bx2 + 6}
+          y={by1 + 2}
+          textAnchor="start"
+          className="fill-blue-700"
+          style={{ fontSize: 20, fontWeight: 700 }}
         >
-          lading {chargeLabel(result.charge)}
+          {ionChargeMark(result.charge)}
         </text>
       )}
     </svg>

@@ -218,7 +218,7 @@ function geometryLabel(
 
   // VSEPR-hints (4 havo/vwo).
   let geometry = "zie bindingsparen + vrije elektronenparen";
-  if (X === 1 && E === 0) geometry = "lineair (diatom)";
+  if (X === 1) geometry = "lineair (twee atomen)";
   else if (X === 2 && E === 0) geometry = "lineair";
   else if (X === 2 && E === 1) geometry = "hoekig (gebogen)";
   else if (X === 2 && E === 2) geometry = "hoekig (gebogen), zoals H₂O";
@@ -372,7 +372,7 @@ export function buildLewis(formula: string, charge: number = 0): LewisResult {
     n: 3,
     title: "Teken het skelet (enkelvoudige bindingen)",
     body: "Verbind elk eindstandig atoom met één gemeenschappelijk elektronenpaar aan het centrale atoom. Elke streep = 2 elektronen.",
-    calc: `${bonds.length} binding(en) × 2 e⁻ = ${used} e⁻ gebruikt. Resterend: ${
+    calc: `${bonds.length} ${bonds.length === 1 ? "binding" : "bindingen"} × 2 e⁻ = ${used} e⁻ gebruikt. Resterend: ${
       totalValence - used
     } e⁻.`,
   });
@@ -470,7 +470,7 @@ export function buildLewis(formula: string, charge: number = 0): LewisResult {
       n: 6,
       title: "Maak meervoudige bindingen (indien nodig)",
       body: "Heeft het centrale atoom nog geen octet? Verplaats dan een vrij elektronenpaar van een eindstandig atoom naar een extra binding (dubbel of drievoudig).",
-      calc: `${upgraded} extra bindingspaar${upgraded === 1 ? "" : "en"} gevormd. Bindingen: ${bonds
+      calc: `${upgraded} extra ${upgraded === 1 ? "bindingspaar" : "bindingsparen"} gevormd. Bindingen: ${bonds
         .map((b) => {
           const t = atomInfos.find((a) => a.id === b.to)!;
           const label =
