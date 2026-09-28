@@ -6,7 +6,8 @@ export type AppRoute =
   | "/bereken"
   | "/rekenschema"
   | "/molverhouding"
-  | "/zouten";
+  | "/zouten"
+  | "/lewis";
 
 function IconEquation() {
   return (
@@ -115,6 +116,27 @@ function IconSalt() {
   );
 }
 
+function IconLewis() {
+  return (
+    <svg
+      viewBox="0 0 24 24"
+      className="h-5 w-5"
+      fill="none"
+      stroke="currentColor"
+      strokeWidth="1.8"
+      strokeLinecap="round"
+      aria-hidden
+    >
+      <circle cx="12" cy="12" r="2.2" fill="currentColor" stroke="none" />
+      <circle cx="12" cy="4.2" r="1.15" fill="currentColor" stroke="none" />
+      <circle cx="12" cy="19.8" r="1.15" fill="currentColor" stroke="none" />
+      <circle cx="4.2" cy="12" r="1.15" fill="currentColor" stroke="none" />
+      <circle cx="19.8" cy="12" r="1.15" fill="currentColor" stroke="none" />
+      <path d="M12 6.2v3.2M12 14.6v3.2M6.2 12h3.2M14.6 12h3.2" />
+    </svg>
+  );
+}
+
 const NAV: {
   href: AppRoute;
   label: string;
@@ -125,6 +147,7 @@ const NAV: {
   { href: "/rekenschema", label: "Rekenschema", Icon: IconSchema },
   { href: "/molverhouding", label: "Molverhouding", Icon: IconRatio },
   { href: "/zouten", label: "Zouten", Icon: IconSalt },
+  { href: "/lewis", label: "Lewisstructuur", Icon: IconLewis },
 ];
 
 export function AppNav({ current }: { current: AppRoute }) {
