@@ -399,10 +399,12 @@ export function buildLewis(formula: string, charge: number = 0): LewisResult {
     body: "Geef elk eindstandig atoom een octet (8 e⁻), behalve H (duet = 2 e⁻). Elektronen die niet in een binding zitten, teken je als vrije elektronenparen (punten).",
     calc:
       terminals
-        .map(
-          (t) =>
-            `${t.symbol}: ${t.lonePairs} vrij paar${t.lonePairs === 1 ? "" : "en"}`
-        )
+        .map((t) => {
+          const n = t.lonePairs;
+          const label =
+            n === 1 ? "1 vrij paar" : n === 0 ? "geen vrij paar" : `${n} vrije paren`;
+          return `${t.symbol}: ${label}`;
+        })
         .join(" · ") + ` → nog ${remaining} e⁻ over.`,
   });
 
@@ -419,9 +421,12 @@ export function buildLewis(formula: string, charge: number = 0): LewisResult {
     n: 5,
     title: "Plaats overgebleven elektronen op het centrale atoom",
     body: "Alles wat over is, komt als vrije elektronenparen op het centrale atoom.",
-    calc: `${central.symbol}: ${central.lonePairs} vrij paar${
-      central.lonePairs === 1 ? "" : "en"
-    }.`,
+    calc: (() => {
+      const n = central.lonePairs;
+      const label =
+        n === 1 ? "1 vrij paar" : n === 0 ? "geen vrij paar" : `${n} vrije paren`;
+      return `${central.symbol}: ${label}.`;
+    })(),
   });
 
   // Stap 6 — meervoudige bindingen als centraal octet tekort komt
