@@ -2,7 +2,7 @@
 // Strategie: cache-first voor statische assets, network-first voor de HTML,
 // met fallback naar cache wanneer er geen verbinding is.
 
-const CACHE_VERSION = "reactievergelijking-v14";
+const CACHE_VERSION = "reactievergelijking-v15";
 
 // Op localhost draait de dev-server: daar zou cache-first steeds de oude
 // bundel teruggeven, waardoor wijzigingen niet zichtbaar worden.
@@ -14,6 +14,8 @@ const PRECACHE = [
   "/bereken",
   "/rekenschema",
   "/molverhouding",
+  "/zouten",
+  "/lewis",
   "/manifest.webmanifest",
   "/icon-192.png",
   "/icon-512.png",
